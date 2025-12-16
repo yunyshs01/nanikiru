@@ -132,7 +132,7 @@
     }
     .tileBtn{
       border:none; background:transparent; padding:0; cursor:pointer; position:relative; outline:none;
-      display:inline-block; /* ✅ 추가: 선택/정답 하이라이트 안정화 */
+      display:inline-block;
     }
     .tileBtn.selected::after{
       content:""; position:absolute; inset:-4px;
@@ -208,6 +208,35 @@
     }
     .box h3{margin:0 0 6px; font-size:13px; color:var(--muted); font-weight:700}
     .box .big{font-size:14px; line-height:1.5; white-space:pre-wrap}
+
+    /* 종류 치환 레이블 */
+    .swapLabel{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      margin:0;
+      font-size:12px;
+      color:var(--text);
+      font-weight:800;
+      cursor:pointer;
+      padding:6px 10px;
+      border:1px solid var(--line);
+      border-radius:999px;
+      background: rgba(255,255,255,.03);
+      user-select:none;
+    }
+    .swapLabel:hover{
+      border-color:#34506b;
+      background: rgba(106,169,255,.08);
+    }
+    .swapLabel input{
+      width:auto;
+      margin:0;
+    }
+    select:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
 
     /* Modal */
     .modalOverlay{
@@ -322,22 +351,17 @@
 
         <div class="col">
           <div class="row">
-            <span class="pill">랜덤화</span>
-            <label style="display:flex; align-items:center; gap:8px; margin:0; font-size:12px; color:var(--muted); font-weight:700">
-              <input type="checkbox" id="toggleRandomize" style="width:auto; margin:0" />
-              켜기
+            <label class="swapLabel" title="수패, 객풍패, 삼원패를 무작위로 치환합니다.">
+              <input type="checkbox" id="toggleRandomize" />
+              종류 치환
             </label>
+
             <select id="randomizeCount" class="pill" style="flex:1; padding:8px 10px">
               <option value="1">기본만</option>
               <option value="3" selected>+ 3개 변형</option>
               <option value="5">+ 5개 변형</option>
               <option value="10">+ 10개 변형</option>
             </select>
-          </div>
-          <div class="muted">
-            랜덤화 규칙: 수패(m/p/s) 3종 치환, 삼원패(5z/6z/7z) 치환,
-            풍패는 “장풍/자풍” 제외한 나머지 풍패만 swap 가능.
-            (내보내기 JSON에는 변형 문제 제외)
           </div>
         </div>
 
@@ -393,19 +417,14 @@
         </div>
 
         <div class="muted" style="margin-top:-6px; margin-bottom:10px">
-          R: 랜덤 1문제. ←/→: 선택 패 이동(기본=쯔모). 이전: 히스토리 이동. 다음: 랜덤 새 문제.
+          R: 랜덤 1문제. ←/→: 선택 패 이동(기본=쯔모). 같은 패를 한 번 더 클릭: 정답 확인. 이전: 히스토리 이동. 다음: 랜덤 새 문제.
         </div>
 
-        <div class="twoCol">
+        <!-- ✅ 도라표지패 박스(현재 정보 통합)만 유지 -->
+        <div class="twoCol" style="grid-template-columns: 1fr;">
           <div class="box">
-            <h3>도라표지패</h3>
+            <h3>현재 정보</h3>
             <div class="rowLine" id="doraBox"></div>
-          </div>
-          <div class="box">
-            <h3>링크</h3>
-            <div class="rowLine" id="linksBox">
-              <span class="muted">정답 확인을 누르면 해설/패효율(iframe)이 아래에 표시돼.</span>
-            </div>
           </div>
         </div>
 
@@ -493,7 +512,7 @@
         <div class="hr"></div>
 
         <div class="row" style="justify-content:space-between">
-          <div class="footerNote">※ 패효율 iframe은 자동 생성(표시만 안 함): <code>https://tenhou.net/2/?q=손패</code></div>
+          <div class="footerNote">※ 패효율 iframe은 정답 확인 시 자동 표시됨.</div>
           <div class="row">
             <button class="btn small" id="btnCopyCurrentJsonInModal">현재 JSON 복사</button>
           </div>
@@ -851,7 +870,6 @@ function setCardEmpty(){
   $("qMeta").innerHTML = "";
   $("tiles").innerHTML = "";
   $("doraBox").innerHTML = `<span class="muted">-</span>`;
-  $("linksBox").innerHTML = `<span class="muted">정답 확인을 누르면 해설/패효율(iframe)이 아래에 표시돼.</span>`;
   $("result").style.display = "none";
   $("btnReveal").disabled = true;
   $("btnNext").disabled = true;
@@ -871,62 +889,10 @@ function highlightSelectedTile(){
   if(b) b.classList.add("selected");
 }
 
-function renderCurrent(){
-  const p = history[idx];
-  if(!p){ setCardEmpty(); return; }
-
-  revealed = false;
-  $("result").style.display = "none";
-  $("btnReveal").disabled = false;
-  $("btnNext").disabled = true;
-  $("btnPrev").disabled = idx <= 0;
-
-  $("qTitle").textContent = p.title || "(제목 없음)";
-  $("qMeta").innerHTML = "";
-  const meta = [`${p.round}`, `${p.turn}순`, `자풍 ${p.seatWind}`, p._isVariant ? "랜덤화 변형" : "기본 문제"];
-  for(const m of meta){
-    const sp = document.createElement("span");
-    sp.className = "chip";
-    sp.textContent = m;
-    $("qMeta").appendChild(sp);
-  }
-
-  $("doraBox").innerHTML = "";
-  if(p.doraIndicator && isTileCode(p.doraIndicator)){
-    $("doraBox").appendChild(tileEl(p.doraIndicator, {tsumo:false}));
-    const t = document.createElement("span");
-    t.className = "badge";
-    t.textContent = p.doraIndicator;
-    $("doraBox").appendChild(t);
-  }else{
-    $("doraBox").innerHTML = `<span class="muted">도라표지패가 없거나 형식이 잘못됨</span>`;
-  }
-
-  $("linksBox").innerHTML = `<span class="muted">정답 확인을 누르면 해설 링크/패효율(iframe)이 표시돼.</span>`;
-
-  const tiles = orderTilesForDisplay(p.hand);
-  $("tiles").innerHTML = "";
-
-  tiles.forEach((t,i)=>{
-    const btn = tileEl(t, {tsumo: i === tiles.length-1});
-    btn.dataset.index = String(i);
-
-    btn.addEventListener("click", ()=>{
-      if(revealed) return;
-      selectedIndex = i;
-      selected = tiles[selectedIndex];
-      highlightSelectedTile();
-    });
-
-    $("tiles").appendChild(btn);
-  });
-
-  // ✅ 기본 선택 = 쯔모
-  selectedIndex = tiles.length ? tiles.length - 1 : null;
-  selected = (selectedIndex !== null) ? tiles[selectedIndex] : null;
-  highlightSelectedTile();
-
-  syncCardFavoriteButton();
+function parseAnswerList(answerStr){
+  const s = String(answerStr || "");
+  const matches = s.match(/[0-9][mpsz]/g);
+  return matches ? [...new Set(matches)] : [];
 }
 
 function escapeHtml(s){
@@ -938,23 +904,128 @@ function escapeHtml(s){
     .replaceAll("'","&#39;");
 }
 
-function parseAnswerList(answerStr){
-  const s = String(answerStr || "");
-  const matches = s.match(/[0-9][mpsz]/g);
-  return matches ? [...new Set(matches)] : [];
+/* ✅ Enter / 버튼 / 재클릭 동작을 완전히 통일 */
+function attemptReveal(){
+  const p = history[idx];
+  if(!p) return;
+
+  if($("btnReveal")?.disabled) return;
+  if(revealed) return;
+
+  const btns = [...$("tiles").querySelectorAll(".tileBtn")];
+  if(btns.length === 0) return;
+
+  if(selectedIndex === null || selectedIndex >= btns.length){
+    selectedIndex = btns.length - 1;
+    selected = btns[selectedIndex]?.dataset.tile || selected;
+    highlightSelectedTile();
+  }
+
+  reveal();
+}
+
+function renderCurrent(){
+  const p = history[idx];
+  if(!p){ setCardEmpty(); return; }
+
+  revealed = false;
+  $("result").style.display = "none";
+  $("btnReveal").disabled = false;
+  $("btnNext").disabled = true;
+  $("btnPrev").disabled = idx <= 0;
+
+  $("qTitle").textContent = p.title || "(제목 없음)";
+
+  /* ✅ qMeta 중복 제거: 기본/변형 + 즐겨찾기만 */
+  $("qMeta").innerHTML = "";
+  const ref = getBaseProblemRefFromAny(p);
+  const meta = [
+    p._isVariant ? "종류 치환(변형)" : "기본 문제",
+    ref?.isFavorite ? "★ 즐겨찾기" : null
+  ].filter(Boolean);
+
+  for(const m of meta){
+    const sp = document.createElement("span");
+    sp.className = "chip";
+    sp.textContent = m;
+    $("qMeta").appendChild(sp);
+  }
+
+  /* ✅ 도라표지 박스에 국/순/자풍/도라 표시를 통합 */
+  $("doraBox").innerHTML = "";
+
+  const b1 = document.createElement("span");
+  b1.className = "badge";
+  b1.textContent = p.round;
+  $("doraBox").appendChild(b1);
+
+  const b2 = document.createElement("span");
+  b2.className = "badge";
+  b2.textContent = `${p.turn}순`;
+  $("doraBox").appendChild(b2);
+
+  const b3 = document.createElement("span");
+  b3.className = "badge";
+  b3.textContent = `자풍 ${p.seatWind}`;
+  $("doraBox").appendChild(b3);
+
+  if(p.doraIndicator && isTileCode(p.doraIndicator)){
+    $("doraBox").appendChild(tileEl(p.doraIndicator, {tsumo:false}));
+    const t = document.createElement("span");
+    t.className = "badge";
+    t.textContent = p.doraIndicator;
+    $("doraBox").appendChild(t);
+  }else{
+    const m = document.createElement("span");
+    m.className = "muted";
+    m.textContent = "도라표지패가 없거나 형식이 잘못됨";
+    $("doraBox").appendChild(m);
+  }
+
+  const tiles = orderTilesForDisplay(p.hand);
+  $("tiles").innerHTML = "";
+
+  tiles.forEach((t,i)=>{
+    const btn = tileEl(t, {tsumo: i === tiles.length-1});
+    btn.dataset.index = String(i);
+
+    btn.addEventListener("click", ()=>{
+      if(revealed) return;
+
+      /* ✅ 이미 선택된 패를 다시 클릭하면 바로 정답 확인(Enter/버튼과 동일) */
+      if(selectedIndex === i){
+        attemptReveal();
+        return;
+      }
+
+      selectedIndex = i;
+      selected = tiles[selectedIndex];
+      highlightSelectedTile();
+    });
+
+    $("tiles").appendChild(btn);
+  });
+
+  /* ✅ 기본 선택 = 쯔모 */
+  selectedIndex = tiles.length ? tiles.length - 1 : null;
+  selected = (selectedIndex !== null) ? tiles[selectedIndex] : null;
+  highlightSelectedTile();
+
+  syncCardFavoriteButton();
 }
 
 function reveal(){
   const p = history[idx];
   if(!p) return;
 
-  // 기본 선택(쯔모) 포함
+  if(revealed) return;
+  revealed = true;
+  $("btnReveal").disabled = true;
+
   if(selectedIndex === null || !selected){
-    alert("선택된 패가 없어. (버그)"); 
+    alert("선택된 패가 없어. (버그)");
     return;
   }
-
-  revealed = true;
 
   const answers = parseAnswerList(p.answer);
   const correctOne = answers[0] || p.answer;
@@ -963,11 +1034,11 @@ function reveal(){
   const btns = [...$("tiles").querySelectorAll(".tileBtn")];
   btns.forEach(b=>b.classList.remove("correct","wrong"));
 
-  // ✅ 내가 고른 '그 인덱스' 버튼에 하이라이트
+  /* ✅ 내가 고른 '그 인덱스' 버튼에 하이라이트 */
   const pickedBtn = btns.find(b => Number(b.dataset.index) === selectedIndex);
   if(pickedBtn) pickedBtn.classList.add(ok ? "correct" : "wrong");
 
-  // ✅ 오답이면 정답패(여러 장 있어도 1장만) 녹색 하이라이트
+  /* ✅ 오답이면 정답패(1개) 녹색 하이라이트 */
   if(!ok){
     const correctBtn = btns.find(b => (b.dataset.tile || "").trim() === String(correctOne).trim());
     if(correctBtn) correctBtn.classList.add("correct");
@@ -1243,14 +1314,22 @@ function isTypingInInput(){
   const tag = el.tagName;
   return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
 }
+
+function syncRandomizeUi(){
+  const on = $("toggleRandomize").checked;
+  $("randomizeCount").disabled = !on;
+}
+
 window.addEventListener("keydown", (e)=>{
   const modalOpen = $("modalOverlay")?.classList.contains("show");
   if(modalOpen) return;
   if(isTypingInInput()) return;
 
   if(e.key === "Enter"){
-    const btn = $("btnReveal");
-    if(btn && !btn.disabled){ e.preventDefault(); btn.click(); }
+    if($("btnReveal") && !$("btnReveal").disabled){
+      e.preventDefault();
+      attemptReveal();
+    }
   }
   if(e.key === "PageDown"){
     const btn = $("btnNext");
@@ -1260,14 +1339,11 @@ window.addEventListener("keydown", (e)=>{
     const btn = $("btnPrev");
     if(btn && !btn.disabled){ e.preventDefault(); btn.click(); }
   }
-
-  // ✅ R 키로 랜덤 1문제
   if(e.key === "r" || e.key === "R"){
     const btn = $("btnStart");
     if(btn && !btn.disabled){ e.preventDefault(); btn.click(); }
   }
 
-  // ✅ 좌/우 화살표로 선택 이동
   if(e.key === "ArrowLeft" || e.key === "ArrowRight"){
     if(revealed) return;
     const btns = [...$("tiles").querySelectorAll(".tileBtn")];
@@ -1279,11 +1355,7 @@ window.addEventListener("keydown", (e)=>{
     if(e.key === "ArrowRight") selectedIndex = Math.min(btns.length - 1, selectedIndex + 1);
 
     selected = btns[selectedIndex]?.dataset.tile || selected;
-
-    btns.forEach(b=>b.classList.remove("selected"));
-    const picked = btns.find(b=>Number(b.dataset.index)===selectedIndex);
-    if(picked) picked.classList.add("selected");
-
+    highlightSelectedTile();
     e.preventDefault();
   }
 });
@@ -1332,7 +1404,7 @@ function init(){
   $("btnStart").addEventListener("click", ()=>startRandom(false));
   $("btnStartFav").addEventListener("click", ()=>startRandom(true));
 
-  $("btnReveal").addEventListener("click", reveal);
+  $("btnReveal").addEventListener("click", attemptReveal);
   $("btnNext").addEventListener("click", nextRandom);
   $("btnPrev").addEventListener("click", prev);
 
@@ -1347,9 +1419,13 @@ function init(){
     syncCardFavoriteButton();
   });
 
-  $("toggleRandomize").addEventListener("change", rebuildQuizPool);
+  $("toggleRandomize").addEventListener("change", ()=>{
+    syncRandomizeUi();
+    rebuildQuizPool();
+  });
   $("randomizeCount").addEventListener("change", rebuildQuizPool);
 
+  syncRandomizeUi();
   setStats();
   renderProblemList();
   rebuildQuizPool();
