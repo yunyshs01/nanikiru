@@ -23,7 +23,6 @@
     }
     a{color:var(--accent); text-decoration:none}
     a:hover{text-decoration:underline}
-    code{padding:2px 6px; border:1px solid var(--line); border-radius:8px; background: rgba(255,255,255,.03)}
     .app{
       display:grid;
       grid-template-columns: 320px 1fr;
@@ -180,6 +179,16 @@
       border-color: rgba(106,169,255,.4);
     }
 
+    /* Back 패 */
+    .tileFace.back{
+      background-image: url("https://raw.githubusercontent.com/FluffyStuff/riichi-mahjong-tiles/master/Regular/Back.svg");
+    }
+
+    /* 쯔모패 선택/정답/오답 하이라이트 위치 보정 */
+    .tileBtn.tsumo.selected::after{ transform: translateY(-6px); }
+    .tileBtn.tsumo.correct::after,
+    .tileBtn.tsumo.wrong::after{ transform: translateY(-6px); }
+
     .result{
       margin-top:12px;
       border:1px solid var(--line);
@@ -208,6 +217,15 @@
     }
     .box h3{margin:0 0 6px; font-size:13px; color:var(--muted); font-weight:700}
     .box .big{font-size:14px; line-height:1.5; white-space:pre-wrap}
+
+    /* 도라 박스: 5패 우측정렬 */
+    .doraTiles{
+      display:flex;
+      justify-content:flex-end;
+      align-items:flex-end;
+      gap:6px;
+      flex-wrap:wrap;
+    }
 
     /* 체크박스+레이블 공통 스타일 */
     .swapLabel{
@@ -295,14 +313,6 @@
     input::placeholder, textarea::placeholder{color: rgba(154,166,178,.65)}
     .help{font-size:12px; color: var(--muted)}
     .footerNote{font-size:12px; color: var(--muted); line-height:1.4}
-    .pill{
-      padding:7px 10px;
-      border-radius: 999px;
-      border:1px solid var(--line);
-      background: rgba(255,255,255,.02);
-      font-size:12px;
-      color: var(--muted);
-    }
 
     #problemList{
       max-height: 52vh;
@@ -347,7 +357,7 @@
 
         <div class="col">
           <div class="row">
-            <label class="swapLabel" title="수패, 객풍패, 삼원패를 무작위로 치환합니다. (종류 치환이 켜져있으면 모든 순열 가능)">
+            <label class="swapLabel" title="수패, 객풍패, 삼원패를 무작위로 치환합니다.">
               <input type="checkbox" id="toggleRandomize" />
               종류 치환
             </label>
@@ -407,10 +417,15 @@
           Enter: 정답 확인. ←/→: 선택 패 이동(기본=쯔모). 같은 패를 한 번 더 클릭: 정답 확인. 이전(PgUp): 히스토리 이동. 다음(PgDn): 조건에 따라 새 문제.
         </div>
 
-        <div class="twoCol" style="grid-template-columns: 1fr;">
+        <div class="twoCol">
           <div class="box">
             <h3>현재 정보</h3>
-            <div class="rowLine" id="doraBox"></div>
+            <div class="rowLine" id="metaBox"></div>
+          </div>
+
+          <div class="box">
+            <h3>도라</h3>
+            <div class="rowLine doraTiles" id="doraIndicatorBox"></div>
           </div>
         </div>
 
@@ -466,8 +481,8 @@
           </div>
 
           <div class="field">
-            <label>도라표지패</label>
-            <input id="fDora" placeholder="예: 9s / 0p / 7z" />
+            <label>도라표지패 (1~5개)</label>
+            <input id="fDora" placeholder="예: 9s / 9s,1m / 9s1m3z (최대 5개)" />
             <div class="help">m/p/s/z 표기. 적5는 0.</div>
           </div>
 
@@ -494,33 +509,25 @@
             <textarea id="fExplanation" placeholder="해설을 여기에 적어도 되고, 링크만 넣어도 돼."></textarea>
           </div>
 
-          <!-- ✅ 일괄 추가하기 섹션 -->
           <div class="field" style="grid-column: 1 / -1">
             <div class="hr"></div>
             <label>일괄 추가하기 (JSON)</label>
             <div class="row" style="align-items:stretch">
               <input id="bulkJsonText" placeholder='여기에 JSON 배열을 붙여넣기 (예: [{"title":"...",...}, ...])' style="flex:1" />
-              <button class="btn small" id="btnBulkImport">일괄 추가</button>
+              <button class="btn primary" id="btnBulkImport">일괄 추가</button>
               <button class="btn small" id="btnAttachJson">json 파일 첨부</button>
               <input type="file" id="jsonFileInput" accept="application/json,.json" style="display:none" />
             </div>
-            <div class="help">붙여넣기/파일첨부 후 “일괄 추가”를 누르면 여러 문제가 추가돼. (저장 버튼은 단일 추가)</div>
+            <div class="help">붙여넣기/파일첨부 후 “일괄 추가”를 누르면 여러 문제가 추가돼. (저장 버튼도 일괄 추가를 우선 처리함)</div>
           </div>
         </div>
 
-        <div class="hr"></div>
-
-        <div class="row" style="justify-content:space-between">
-          <div class="footerNote">※ 패효율 iframe은 정답 확인 시 자동 표시됨.</div>
-          <div class="row">
-            <button class="btn small" id="btnCopyCurrentJsonInModal">현재 JSON 복사</button>
-          </div>
-        </div>
       </div>
 
       <div class="ft">
         <div class="muted">저장 시 로컬스토리지에 보관됨.</div>
         <div class="row">
+          <button class="btn small" id="btnCopyCurrentJsonInModal">현재 JSON 복사</button>
           <button class="btn" id="btnCancelModal">취소</button>
           <button class="btn primary" id="btnSave">저장</button>
         </div>
@@ -529,11 +536,11 @@
   </div>
 
 <script>
+/* ===== Tileset (GitHub raw) ===== */
 const TILESET = {
   base: "https://raw.githubusercontent.com/FluffyStuff/riichi-mahjong-tiles/master/Regular/",
   ext: "svg",
 };
-
 function tileAssetNameFromCode(code){
   const m = String(code).match(/^([0-9])([mpsz])$/);
   if(!m) return null;
@@ -554,7 +561,8 @@ function tileImgUrl(code){
   return `${TILESET.base}${name}.${TILESET.ext}`;
 }
 
-const LS_KEY = "nanikiru.baseProblems.v1";
+/* ===== Storage ===== */
+const LS_KEY = "nanikiru.baseProblems.v2";
 function loadBaseProblems(){
   try{
     const raw = localStorage.getItem(LS_KEY);
@@ -564,6 +572,7 @@ function loadBaseProblems(){
     for(const p of arr){
       if(!p.id) p.id = crypto.randomUUID();
       if(typeof p.isFavorite !== "boolean") p.isFavorite = !!p.isFavorite;
+      if(!("doraIndicator" in p)) p.doraIndicator = "";
     }
     return arr;
   }catch{ return []; }
@@ -572,13 +581,15 @@ function saveBaseProblems(arr){
   localStorage.setItem(LS_KEY, JSON.stringify(arr));
 }
 
+/* ===== Parsing ===== */
 const SUITS = new Set(["m","p","s","z"]);
 const WIND_KR = ["동","남","서","북"];
-function cleanMpsz(str){
-  return (str||"").trim().replace(/\s+/g,"").replace(/\|/g,"");
+
+function cleanTileString(str){
+  return (str||"").trim().replace(/\s+/g,"").replace(/[|,]/g,"");
 }
 function parseMpszHand(handStr){
-  const s = cleanMpsz(handStr);
+  const s = cleanTileString(handStr);
   let digits = "";
   const tiles = [];
   for(const ch of s){
@@ -594,15 +605,21 @@ function parseMpszHand(handStr){
   if(digits) throw new Error("마지막에 m/p/s/z가 빠졌어.");
   return tiles;
 }
-function isTileCode(t){
-  return /^[0-9][mpsz]$/.test(t);
+function isTileCode(t){ return /^[0-9][mpsz]$/.test(t); }
+
+function parseTileList(str, max=5){
+  const s = String(str ?? "").trim();
+  const matches = s.match(/[0-9][mpsz]/g);
+  if(!matches) return [];
+  return matches.slice(0, max);
 }
-function normalizeRound(roundStr){ return roundStr; }
+
 function tenhouUrlFromHand(handStr){
-  const q = encodeURIComponent(cleanMpsz(handStr));
+  const q = encodeURIComponent(cleanTileString(handStr));
   return `https://tenhou.net/2/?q=${q}`;
 }
 
+/* ===== Display order (만-통-삭-자 + 쯔모) ===== */
 const SUIT_PRIORITY = { m: 0, p: 1, s: 2, z: 3 };
 function sortKey(tile){
   const num = parseInt(tile[0], 10);
@@ -626,11 +643,15 @@ function orderTilesForDisplay(handStr){
   return [...rest, tsumo];
 }
 
-/* ===== 종류 치환: 모든 순열(완전 랜덤) =====
-   - 수패: m/p/s 3! = 6
-   - 삼원패: 5z/6z/7z 3! = 6
-   - 풍패: 객풍(= roundWind, seatWind 제외한 2개) 2! = 2 (또는 고정이면 그대로)
-*/
+/* ===== 종류 치환(모든 순열) ===== */
+function permutations3(arr){
+  const [a,b,c] = arr;
+  return [
+    [a,b,c],[a,c,b],
+    [b,a,c],[b,c,a],
+    [c,a,b],[c,b,a],
+  ];
+}
 function roundWindFromRound(roundStr){
   if(String(roundStr).startsWith("동")) return "1z";
   if(String(roundStr).startsWith("남")) return "2z";
@@ -639,6 +660,17 @@ function roundWindFromRound(roundStr){
 function seatWindToZ(seatWindKr){
   const idx = WIND_KR.indexOf(seatWindKr);
   return `${idx+1}z`;
+}
+function windMapsForBase(base){
+  const fixed = new Set([roundWindFromRound(base.round), seatWindToZ(base.seatWind)]);
+  const winds = ["1z","2z","3z","4z"];
+  const free = winds.filter(w => !fixed.has(w));
+  if(free.length !== 2) return [{}];
+  const [x,y] = free;
+  return [
+    {},
+    { [x]: y, [y]: x }
+  ];
 }
 function applyMappingToTile(tile, map){
   const m = tile.match(/^([0-9])([mpsz])$/);
@@ -672,49 +704,30 @@ function applyMappingToHandStr(handStr, map){
   const mapped = tiles.map(t => applyMappingToTile(t, map));
   return tilesToMpszString(mapped);
 }
-function randomPermutation(arr){
-  const a = [...arr];
-  for(let i=a.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [a[i],a[j]] = [a[j],a[i]];
-  }
-  return a;
+function parseAnswerList(answerStr){
+  const s = String(answerStr || "");
+  const matches = s.match(/[0-9][mpsz]/g);
+  return matches ? [...new Set(matches)] : [];
 }
-function makeRandomMapForProblem(base){
-  const suits = ["m","p","s"];
-  const perm = randomPermutation(suits);
-  const suitMap = { m: perm[0], p: perm[1], s: perm[2] };
-
-  const dragons = ["5z","6z","7z"];
-  const dperm = randomPermutation(dragons);
-  const dragonMap = { "5z": dperm[0], "6z": dperm[1], "7z": dperm[2] };
-
-  const fixed = new Set([roundWindFromRound(base.round), seatWindToZ(base.seatWind)]);
-  const winds = ["1z","2z","3z","4z"];
-  const free = winds.filter(w => !fixed.has(w));
-  const windMap = {};
-  if(free.length === 2){
-    // 2! 전체 순열
-    if(Math.random() < 0.5){
-      windMap[free[0]] = free[1];
-      windMap[free[1]] = free[0];
-    }
-  }
-  return { suit: suitMap, dragon: dragonMap, wind: windMap };
-}
-function makeVariantProblem(base){
-  const map = makeRandomMapForProblem(base);
+function makeVariantProblemWithMap(base, map){
   const v = structuredClone(base);
   v._isVariant = true;
   v._baseId = base.id;
   v._map = map;
+
   v.hand = applyMappingToHandStr(base.hand, map);
-  v.answer = applyMappingToTile(base.answer, map);
-  v.doraIndicator = applyMappingToTile(base.doraIndicator, map);
+
+  const ans = parseAnswerList(base.answer);
+  v.answer = (ans.length ? ans : [base.answer]).map(t => applyMappingToTile(t, map)).join(",");
+
+  v.doraIndicator = parseTileList(base.doraIndicator, 5)
+    .map(t => applyMappingToTile(t, map))
+    .join(",");
+
   return v;
 }
 
-/* ===== 상태 ===== */
+/* ===== State ===== */
 let baseProblems = loadBaseProblems();
 let quizPool = [];
 let history = [];
@@ -725,46 +738,54 @@ let selectedIndex = null;
 
 const $ = (id)=>document.getElementById(id);
 
-/* ===== 필터/모드 ===== */
 function favoritesOnlyOn(){ return $("toggleFavOnly")?.checked; }
 function shuffleOn(){ return $("toggleShuffle")?.checked; }
 
-/* ===== 풀 빌드(종류 치환 on => 변형 생성) ===== */
 function rebuildQuizPool(){
   const enable = $("toggleRandomize").checked;
   const pool = [];
+
+  if(!enable){
+    for(const p of baseProblems) pool.push({...p, _isVariant:false});
+    quizPool = pool;
+    return;
+  }
+
+  const suitPerms = permutations3(["m","p","s"]);
+  const dragonPerms = permutations3(["5z","6z","7z"]);
+
   for(const p of baseProblems){
     pool.push({...p, _isVariant:false});
-    if(enable){
-      // ✅ 드롭다운 제거: 항상 "모든 순열 가능" -> 실제 구현은 "매번 랜덤 맵"으로 변형을 1개씩 생성해도 되지만
-      // 셔플이 켜져있는 동안 충분히 다양한 변형이 나오도록 적당히 여러개 생성
-      for(let i=0;i<12;i++) pool.push(makeVariantProblem(p)); // 12개면 체감 충분
+
+    const windMaps = windMapsForBase(p);
+    for(const sp of suitPerms){
+      const suitMap = { m: sp[0], p: sp[1], s: sp[2] };
+      for(const dp of dragonPerms){
+        const dragonMap = { "5z": dp[0], "6z": dp[1], "7z": dp[2] };
+        for(const wm of windMaps){
+          const map = { suit: suitMap, dragon: dragonMap, wind: wm };
+          pool.push(makeVariantProblemWithMap(p, map));
+        }
+      }
     }
   }
   quizPool = pool;
 }
 
-/* ===== 선택 가능한 기본 리스트(순차용) ===== */
 function getActiveBaseList(){
   return favoritesOnlyOn()
     ? baseProblems.filter(p => !!p.isFavorite)
     : baseProblems;
 }
-
-/* ===== 셔플용 풀(필터 적용, 변형 포함) ===== */
 function getActivePoolForShuffle(){
   if(!favoritesOnlyOn()) return quizPool;
   const favIds = new Set(baseProblems.filter(p=>p.isFavorite).map(p=>p.id));
   return quizPool.filter(q => q._isVariant ? favIds.has(q._baseId) : favIds.has(q.id));
 }
-
-/* ===== 현재 문제의 "기본 문제 id" ===== */
 function baseIdOf(q){
   if(!q) return null;
   return q._isVariant ? q._baseId : q.id;
 }
-
-/* ===== 다음 문제 선택 ===== */
 function pickRandom(pool, avoidBaseId=null){
   if(pool.length === 0) return null;
   if(pool.length === 1) return pool[0];
@@ -799,7 +820,7 @@ function chooseNextQuestion(){
   }
 }
 
-/* ===== UI ===== */
+/* ===== UI helpers ===== */
 function setStats(){
   $("statBase").textContent = baseProblems.length;
   $("statFav").textContent = baseProblems.filter(p=>p.isFavorite).length;
@@ -824,7 +845,6 @@ function syncCardFavoriteButton(){
   const ref = getBaseProblemRefFromAny(q);
   setStarButtonVisual(ref ? !!ref.isFavorite : false);
 }
-
 function loadSpecificProblem(baseProblem){
   if(!baseProblem) return;
   history = [{...baseProblem, _isVariant:false}];
@@ -938,12 +958,27 @@ function tileEl(tile, opts={}){
   btn.appendChild(face);
   return btn;
 }
+function makeBackTile(){
+  const btn = document.createElement("button");
+  btn.className = "tileBtn";
+  btn.type = "button";
+  btn.disabled = true;
+  btn.style.cursor = "default";
+
+  const face = document.createElement("div");
+  face.className = "tileFace back";
+  btn.appendChild(face);
+  return btn;
+}
 
 function setCardEmpty(){
   $("qTitle").textContent = "아직 문제를 시작하지 않았어.";
   $("qMeta").innerHTML = "";
   $("tiles").innerHTML = "";
-  $("doraBox").innerHTML = `<span class="muted">-</span>`;
+
+  $("metaBox").innerHTML = `<span class="muted">-</span>`;
+  $("doraIndicatorBox").innerHTML = "";
+
   $("result").style.display = "none";
   $("btnReveal").disabled = true;
   $("btnNext").disabled = true;
@@ -962,13 +997,6 @@ function highlightSelectedTile(){
   const b = all.find(x => Number(x.dataset.index) === selectedIndex);
   if(b) b.classList.add("selected");
 }
-
-function parseAnswerList(answerStr){
-  const s = String(answerStr || "");
-  const matches = s.match(/[0-9][mpsz]/g);
-  return matches ? [...new Set(matches)] : [];
-}
-
 function escapeHtml(s){
   return String(s)
     .replaceAll("&","&amp;")
@@ -978,7 +1006,6 @@ function escapeHtml(s){
     .replaceAll("'","&#39;");
 }
 
-/* Enter / 버튼 / 재클릭 */
 function attemptReveal(){
   const p = history[idx];
   if(!p) return;
@@ -1021,36 +1048,39 @@ function renderCurrent(){
     $("qMeta").appendChild(sp);
   }
 
-  $("doraBox").innerHTML = "";
-
+  /* 현재 정보 */
+  $("metaBox").innerHTML = "";
   const b1 = document.createElement("span");
   b1.className = "badge";
   b1.textContent = p.round;
-  $("doraBox").appendChild(b1);
+  $("metaBox").appendChild(b1);
 
   const b2 = document.createElement("span");
   b2.className = "badge";
   b2.textContent = `${p.turn}순`;
-  $("doraBox").appendChild(b2);
+  $("metaBox").appendChild(b2);
 
   const b3 = document.createElement("span");
   b3.className = "badge";
   b3.textContent = `자풍 ${p.seatWind}`;
-  $("doraBox").appendChild(b3);
+  $("metaBox").appendChild(b3);
 
-  if(p.doraIndicator && isTileCode(p.doraIndicator)){
-    $("doraBox").appendChild(tileEl(p.doraIndicator, {tsumo:false}));
-    const t = document.createElement("span");
-    t.className = "badge";
-    t.textContent = p.doraIndicator;
-    $("doraBox").appendChild(t);
-  }else{
-    const m = document.createElement("span");
-    m.className = "muted";
-    m.textContent = "도라표지패가 없거나 형식이 잘못됨";
-    $("doraBox").appendChild(m);
+  /* 도라: 최대 5개 (입력된 개수만 공개, 나머지 Back) */
+  $("doraIndicatorBox").innerHTML = "";
+  const MAX_DORA_INDICATORS = 5;
+  const doraList = parseTileList(p.doraIndicator, MAX_DORA_INDICATORS);
+
+  for(const t of doraList){
+    const d = tileEl(t, {tsumo:false});
+    d.disabled = true;
+    d.style.cursor = "default";
+    $("doraIndicatorBox").appendChild(d);
+  }
+  for(let i=doraList.length; i<MAX_DORA_INDICATORS; i++){
+    $("doraIndicatorBox").appendChild(makeBackTile());
   }
 
+  /* 손패 */
   const tiles = orderTilesForDisplay(p.hand);
   $("tiles").innerHTML = "";
 
@@ -1060,6 +1090,7 @@ function renderCurrent(){
 
     btn.addEventListener("click", ()=>{
       if(revealed) return;
+
       if(selectedIndex === i){
         attemptReveal();
         return;
@@ -1072,7 +1103,7 @@ function renderCurrent(){
     $("tiles").appendChild(btn);
   });
 
-  selectedIndex = tiles.length ? tiles.length - 1 : null;
+  selectedIndex = tiles.length ? tiles.length - 1 : null; // 기본=쯔모
   selected = (selectedIndex !== null) ? tiles[selectedIndex] : null;
   highlightSelectedTile();
 
@@ -1082,7 +1113,6 @@ function renderCurrent(){
 function reveal(){
   const p = history[idx];
   if(!p) return;
-
   if(revealed) return;
   revealed = true;
   $("btnReveal").disabled = true;
@@ -1108,21 +1138,22 @@ function reveal(){
   }
 
   const tenhou = tenhouUrlFromHand(p.hand) + "#m2";
+  const doraDisp = parseTileList(p.doraIndicator, 5).join(",") || "-";
 
   $("result").style.display = "flex";
   $("result").innerHTML = `
     <div class="rowLine">
       <span class="badge ${ok ? "good":"bad"}">${ok ? "정답!" : "오답"}</span>
-      <span class="badge">내 선택: <b>${selected}</b></span>
+      <span class="badge">내 선택: <b>${escapeHtml(selected)}</b></span>
       <span class="badge">정답: <b>${escapeHtml(answers.length ? answers.join(", ") : p.answer)}</b></span>
-      <span class="badge">도라표지: <b>${p.doraIndicator || "-"}</b></span>
+      <span class="badge">도라표지: <b>${escapeHtml(doraDisp)}</b></span>
     </div>
 
     <div class="rowLine" style="margin-top:2px">
       <span class="badge">해설 링크</span>
       ${
         p.explanationLink
-          ? `<a href="${p.explanationLink}" target="_blank" rel="noreferrer">${p.explanationLink}</a>`
+          ? `<a href="${p.explanationLink}" target="_blank" rel="noreferrer">${escapeHtml(p.explanationLink)}</a>`
           : `<span class="muted">없음</span>`
       }
     </div>
@@ -1134,7 +1165,7 @@ function reveal(){
       </div>
 
       <div class="box">
-        <h3>패효율 (Tenhou iframe)</h3>
+        <h3>패효율 (Tenhou)</h3>
         <iframe
           title="Tenhou"
           src="${tenhou}"
@@ -1142,16 +1173,12 @@ function reveal(){
           loading="lazy"
           referrerpolicy="no-referrer"
         ></iframe>
-        <div class="muted" style="margin-top:6px">
-          ※ iframe 내부 텍스트 자동 복사/읽기는 동일 출처 정책 때문에 불가.
-        </div>
       </div>
     </div>
   `;
   $("btnNext").disabled = false;
 }
 
-/* ===== 다음/이전 ===== */
 function nextByMode(){
   const q = chooseNextQuestion();
   if(!q){
@@ -1169,7 +1196,7 @@ function prev(){
   renderCurrent();
 }
 
-/* ===== 모달 ===== */
+/* ===== Modal ===== */
 function openModal(){
   $("modalOverlay").classList.add("show");
   $("modalOverlay").setAttribute("aria-hidden","false");
@@ -1193,27 +1220,33 @@ function resetAddForm(){
 
 function validateAndBuildProblem(raw){
   const title = (raw.title ?? "").toString().trim();
-  const round = normalizeRound((raw.round ?? "동1국").toString());
+  const round = (raw.round ?? "동1국").toString();
   const turn = parseInt(raw.turn ?? 1, 10) || 1;
   const seatWind = (raw.seatWind ?? "동").toString();
-  const dora = cleanMpsz(raw.doraIndicator ?? "");
-  const hand = cleanMpsz(raw.hand ?? "");
+
+  const doraRaw = String(raw.doraIndicator ?? "").trim();
+  const doraList = parseTileList(doraRaw, 5);
+
+  const hand = cleanTileString(raw.hand ?? "");
   const answer = String(raw.answer ?? "");
+
   const explanationLink = (raw.explanationLink ?? "").toString();
   const explanation = (raw.explanation ?? "").toString();
   const isFavorite = !!raw.isFavorite;
 
   const tiles = parseMpszHand(hand);
   if(tiles.length !== 14) throw new Error("손패 14장 아님");
+
   const answers = parseAnswerList(answer);
   if(answers.length === 0) throw new Error("정답 형식 오류");
-  if(!isTileCode(dora)) throw new Error("도라표지패 형식 오류");
+
+  if(doraList.length < 1 || doraList.length > 5) throw new Error("도라표지패는 1~5개여야 해.");
   if(!WIND_KR.includes(seatWind)) throw new Error("자풍 오류");
 
   return {
     id: crypto.randomUUID(),
     title, round, turn, seatWind,
-    doraIndicator: dora,
+    doraIndicator: doraList.join(","), // 표준 저장
     hand,
     answer: answers.join(","),
     explanationLink, explanation,
@@ -1221,16 +1254,54 @@ function validateAndBuildProblem(raw){
   };
 }
 
+function importProblemsArray(arr){
+  const imported = [];
+  for(const raw of arr){
+    try{
+      const p = validateAndBuildProblem(raw);
+      imported.push(p);
+    }catch{}
+  }
+  if(imported.length === 0){
+    alert("유효한 문제를 하나도 가져오지 못했어. (손패14장/정답/도라 형식 확인)");
+    return 0;
+  }
+  baseProblems = [...imported, ...baseProblems];
+  saveBaseProblems(baseProblems);
+  setStats();
+  renderProblemList();
+  ensureCurrentStillSelectable();
+  return imported.length;
+}
+function importFromText(txt){
+  let data;
+  try{ data = JSON.parse(txt); }
+  catch{ alert("JSON 파싱 실패"); return; }
+  const arr = Array.isArray(data) ? data : (Array.isArray(data.problems) ? data.problems : null);
+  if(!arr){ alert("가져올 JSON이 배열 형태가 아니야."); return; }
+  const n = importProblemsArray(arr);
+  if(n>0) alert(`${n}개 문제를 가져왔어.`);
+}
+
 function saveFromForm(){
+  // 저장 버튼은 "일괄 추가"가 있으면 우선 처리
+  const bulk = $("bulkJsonText").value.trim();
+  if(bulk){
+    importFromText(bulk);
+    $("bulkJsonText").value = "";
+    closeModal();
+    return;
+  }
+
   try{
     const obj = {
       title: $("fTitle").value.trim(),
       round: $("fRound").value,
       turn: parseInt($("fTurn").value, 10) || 1,
       seatWind: $("fSeatWind").value,
-      doraIndicator: cleanMpsz($("fDora").value),
-      hand: cleanMpsz($("fHand").value),
-      answer: cleanMpsz($("fAnswer").value),
+      doraIndicator: $("fDora").value.trim(),
+      hand: $("fHand").value.trim(),
+      answer: $("fAnswer").value.trim(),
       explanationLink: $("fLink").value.trim(),
       explanation: $("fExplanation").value,
       isFavorite: false,
@@ -1247,7 +1318,6 @@ function saveFromForm(){
   }
 }
 
-/* ===== JSON I/O ===== */
 function exportJsonArrayForUser(){
   return baseProblems.map(p => ({
     title: p.title || "",
@@ -1283,16 +1353,15 @@ function downloadAllJson(){
   a.remove();
   URL.revokeObjectURL(url);
 }
-
 async function copyCurrentJsonFromForm(){
   const obj = {
     title: $("fTitle").value.trim(),
-    round: normalizeRound($("fRound").value),
+    round: $("fRound").value,
     turn: parseInt($("fTurn").value, 10) || 1,
     seatWind: $("fSeatWind").value,
-    doraIndicator: cleanMpsz($("fDora").value),
-    hand: cleanMpsz($("fHand").value),
-    answer: cleanMpsz($("fAnswer").value),
+    doraIndicator: $("fDora").value.trim(),
+    hand: $("fHand").value.trim(),
+    answer: $("fAnswer").value.trim(),
     explanationLink: $("fLink").value.trim(),
     explanation: $("fExplanation").value,
     isFavorite: false
@@ -1306,79 +1375,13 @@ async function copyCurrentJsonFromForm(){
   }
 }
 
-function importProblemsArray(arr){
-  const imported = [];
-  for(const raw of arr){
-    try{
-      const p = validateAndBuildProblem(raw);
-      imported.push(p);
-    }catch{}
-  }
-  if(imported.length === 0){
-    alert("유효한 문제를 하나도 가져오지 못했어. (손패14장/정답/도라 형식 확인)");
-    return 0;
-  }
-  baseProblems = [...imported, ...baseProblems];
-  saveBaseProblems(baseProblems);
-  setStats();
-  renderProblemList();
-  ensureCurrentStillSelectable();
-  return imported.length;
-}
-
-function importFromText(txt){
-  let data;
-  try{ data = JSON.parse(txt); }
-  catch{ alert("JSON 파싱 실패"); return; }
-  const arr = Array.isArray(data) ? data : (Array.isArray(data.problems) ? data.problems : null);
-  if(!arr){ alert("가져올 JSON이 배열 형태가 아니야."); return; }
-  const n = importProblemsArray(arr);
-  if(n>0) alert(`${n}개 문제를 가져왔어.`);
-}
-
-/* ===== 입력 포커스 체크 ===== */
+/* ===== Keyboard ===== */
 function isTypingInInput(){
   const el = document.activeElement;
   if(!el) return false;
   const tag = el.tagName;
   return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
 }
-
-/* ===== 조건 변경 시 현재 문제 유효성 보장 ===== */
-function ensureCurrentStillSelectable(){
-  const cur = history[idx] || null;
-  const activeBase = getActiveBaseList();
-
-  if(activeBase.length === 0){
-    history = [];
-    idx = -1;
-    setCardEmpty();
-    return;
-  }
-
-  if(!cur){
-    const q = shuffleOn()
-      ? (rebuildQuizPool(), pickRandom(getActivePoolForShuffle(), null))
-      : {...activeBase[0], _isVariant:false};
-    history = [q];
-    idx = 0;
-    renderCurrent();
-    return;
-  }
-
-  const curBaseId = baseIdOf(cur);
-  const exists = activeBase.some(p => p.id === curBaseId);
-  if(!exists){
-    const q = shuffleOn()
-      ? (rebuildQuizPool(), pickRandom(getActivePoolForShuffle(), null))
-      : {...activeBase[0], _isVariant:false};
-    history = [q];
-    idx = 0;
-    renderCurrent();
-  }
-}
-
-/* ===== 키 바인딩 ===== */
 window.addEventListener("keydown", (e)=>{
   const modalOpen = $("modalOverlay")?.classList.contains("show");
   if(modalOpen) return;
@@ -1414,9 +1417,44 @@ window.addEventListener("keydown", (e)=>{
   }
 });
 
-/* ===== init ===== */
+/* ===== Selection safety ===== */
+function ensureCurrentStillSelectable(){
+  const cur = history[idx] || null;
+  const activeBase = getActiveBaseList();
+
+  if(activeBase.length === 0){
+    history = [];
+    idx = -1;
+    setCardEmpty();
+    return;
+  }
+
+  if(!cur){
+    rebuildQuizPool();
+    const q = shuffleOn()
+      ? pickRandom(getActivePoolForShuffle(), null)
+      : {...activeBase[0], _isVariant:false};
+    history = [q];
+    idx = 0;
+    renderCurrent();
+    return;
+  }
+
+  const curBaseId = baseIdOf(cur);
+  const exists = activeBase.some(p => p.id === curBaseId);
+  if(!exists){
+    rebuildQuizPool();
+    const q = shuffleOn()
+      ? pickRandom(getActivePoolForShuffle(), null)
+      : {...activeBase[0], _isVariant:false};
+    history = [q];
+    idx = 0;
+    renderCurrent();
+  }
+}
+
+/* ===== Init ===== */
 function init(){
-  // 순 드롭다운
   const turnSel = $("fTurn");
   for(let i=1;i<=18;i++){
     const opt = document.createElement("option");
@@ -1435,24 +1473,22 @@ function init(){
   $("btnSave").addEventListener("click", saveFromForm);
   $("btnCopyCurrentJsonInModal").addEventListener("click", copyCurrentJsonFromForm);
 
-  // ✅ 모달의 일괄 추가
   $("btnBulkImport").addEventListener("click", ()=>{
     const txt = $("bulkJsonText").value.trim();
     if(!txt){ alert("JSON을 붙여넣거나 파일을 첨부해줘."); return; }
     importFromText(txt);
     $("bulkJsonText").value = "";
+    closeModal();
   });
 
-  $("btnAttachJson").addEventListener("click", ()=>{
-    $("jsonFileInput").click();
-  });
+  $("btnAttachJson").addEventListener("click", ()=>{ $("jsonFileInput").click(); });
   $("jsonFileInput").addEventListener("change", async ()=>{
     const f = $("jsonFileInput").files?.[0];
     if(!f) return;
     try{
       const text = await f.text();
       $("bulkJsonText").value = text;
-      alert("파일을 불러왔어. ‘일괄 추가’를 누르면 반영돼.");
+      alert("파일을 불러왔어. ‘일괄 추가’ 또는 ‘저장’을 누르면 반영돼.");
     }catch{
       alert("파일 읽기 실패");
     }finally{
@@ -1488,10 +1524,6 @@ function init(){
     renderProblemList();
     syncCardFavoriteButton();
     ensureCurrentStillSelectable();
-  });
-
-  $("toggleRandomize").addEventListener("change", ()=>{
-    // 종류치환 on/off는 다음 선택부터 반영(풀은 chooseNextQuestion에서 rebuild됨)
   });
 
   $("toggleShuffle").addEventListener("change", ()=>{ ensureCurrentStillSelectable(); });
