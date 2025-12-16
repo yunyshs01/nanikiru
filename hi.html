@@ -1,0 +1,1361 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>나니키루 플래시카드</title>
+  <style>
+    :root{
+      --bg:#0b0d10; --panel:#12161c; --panel2:#0f1318;
+      --text:#e7edf5; --muted:#9aa6b2; --line:#232b35;
+      --accent:#6aa9ff; --good:#2ecc71; --bad:#ff5a5a;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --radius: 14px;
+      color-scheme: dark;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", sans-serif;
+      background: radial-gradient(1000px 600px at 20% 0%, rgba(106,169,255,.18), transparent 60%),
+                  radial-gradient(800px 500px at 100% 0%, rgba(46,204,113,.12), transparent 55%),
+                  var(--bg);
+      color:var(--text);
+    }
+    a{color:var(--accent); text-decoration:none}
+    a:hover{text-decoration:underline}
+    code{padding:2px 6px; border:1px solid var(--line); border-radius:8px; background: rgba(255,255,255,.03)}
+    .app{
+      display:grid;
+      grid-template-columns: 320px 1fr;
+      gap:16px;
+      padding:16px;
+      max-width: 1280px;
+      margin:0 auto;
+    }
+    .panel{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 30%), var(--panel);
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .panel .hd{
+      padding:14px 14px 12px;
+      border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .panel .hd .title{font-weight:700}
+    .panel .bd{padding:14px}
+    .btn{
+      appearance:none; border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      display:inline-flex; align-items:center; gap:8px;
+      transition: transform .05s ease, border-color .15s ease, background .15s ease;
+      user-select:none;
+    }
+    .btn:hover{border-color:#34506b; background: rgba(106,169,255,.08)}
+    .btn:active{transform: translateY(1px)}
+    .btn.primary{border-color: rgba(106,169,255,.5); background: rgba(106,169,255,.12)}
+    .btn.danger{border-color: rgba(255,90,90,.5); background: rgba(255,90,90,.10)}
+    .btn.small{padding:7px 10px; border-radius:10px; font-size: 12px}
+    .btn.icon{padding:8px 10px}
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    .col{display:flex; flex-direction:column; gap:10px}
+    .muted{color:var(--muted); font-size:12px; line-height:1.4}
+    .hr{height:1px; background:var(--line); margin:12px 0}
+    .chip{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px; border:1px solid var(--line);
+      border-radius: 999px; background: rgba(255,255,255,.03);
+      font-size:12px; color:var(--muted);
+    }
+    .stat{
+      display:grid; grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    .stat .box{
+      border:1px solid var(--line);
+      border-radius: 12px;
+      padding:10px;
+      background: rgba(255,255,255,.02);
+    }
+    .stat .k{font-size:12px; color:var(--muted)}
+    .stat .v{font-size:16px; font-weight:700; margin-top:4px}
+
+    .list{display:flex; flex-direction:column; gap:10px}
+    .item{
+      border:1px solid var(--line);
+      border-radius: 12px;
+      padding:10px;
+      background: rgba(0,0,0,.12);
+      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+    }
+    .item .meta{display:flex; flex-direction:column; gap:6px}
+    .item .name{font-weight:700}
+
+    .star{
+      width:36px; height:36px;
+      border-radius: 12px;
+      display:inline-flex; align-items:center; justify-content:center;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.02);
+      cursor:pointer;
+    }
+    .star.on{border-color: rgba(255,211,77,.65); background: rgba(255,211,77,.12)}
+    .star svg{width:18px; height:18px}
+
+    .main{display:flex; flex-direction:column; gap:16px}
+    .card{
+      padding:16px;
+      border:1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, rgba(255,255,255,.03), transparent 35%), var(--panel2);
+      box-shadow: var(--shadow);
+    }
+    .card .top{
+      display:flex; justify-content:space-between; align-items:flex-start; gap:10px;
+      margin-bottom:12px;
+    }
+    .h1{font-size:18px; font-weight:800; margin:0 0 6px}
+    .meta2{display:flex; flex-wrap:wrap; gap:8px}
+
+    .tilesWrap{
+      display:flex; align-items:flex-end; gap:6px; flex-wrap:wrap;
+      padding:10px;
+      border:1px dashed rgba(255,255,255,.12);
+      border-radius: 14px;
+      background: rgba(0,0,0,.12);
+    }
+    .tileBtn{
+      border:none; background:transparent; padding:0; cursor:pointer; position:relative; outline:none;
+      display:inline-block; /* ✅ 추가: 선택/정답 하이라이트 안정화 */
+    }
+    .tileBtn.selected::after{
+      content:""; position:absolute; inset:-4px;
+      border:2px solid rgba(106,169,255,.9);
+      border-radius: 12px; pointer-events:none;
+      box-shadow: 0 0 0 3px rgba(106,169,255,.15);
+    }
+    .tileBtn.correct::after{
+      content:""; position:absolute; inset:-4px;
+      border:2px solid rgba(46,204,113,.95);
+      border-radius: 12px; pointer-events:none;
+      box-shadow: 0 0 0 3px rgba(46,204,113,.15);
+    }
+    .tileBtn.wrong::after{
+      content:""; position:absolute; inset:-4px;
+      border:2px solid rgba(255,90,90,.95);
+      border-radius: 12px; pointer-events:none;
+      box-shadow: 0 0 0 3px rgba(255,90,90,.12);
+    }
+
+    .tileFace{
+      width:54px;
+      height:80px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+      position:relative;
+      overflow:hidden;
+      background-color:#ffffff;
+      background-image: url("https://raw.githubusercontent.com/FluffyStuff/riichi-mahjong-tiles/master/Regular/Front.svg");
+      background-repeat:no-repeat;
+      background-position:center;
+      background-size:cover;
+    }
+    .tileSvg{
+      position:absolute; inset:0; width:100%; height:100%;
+      display:block; object-fit:contain; pointer-events:none;
+    }
+    .tileTextFallback{
+      position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+      font-weight:900; color:#111;
+    }
+    .tileBtn.tsumo .tileFace{
+      transform: translateY(-6px);
+      border-color: rgba(106,169,255,.4);
+    }
+
+    .result{
+      margin-top:12px;
+      border:1px solid var(--line);
+      border-radius: 14px;
+      padding:12px;
+      background: rgba(255,255,255,.02);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .result .rowLine{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+    .badge{
+      padding:6px 10px; border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      font-size:12px; color:var(--muted);
+    }
+    .badge.good{border-color: rgba(46,204,113,.4); color: #bff3d2; background: rgba(46,204,113,.10)}
+    .badge.bad{border-color: rgba(255,90,90,.45); color: #ffd2d2; background: rgba(255,90,90,.10)}
+    .twoCol{display:grid; grid-template-columns: 1fr 1fr; gap:10px}
+    .box{
+      border:1px solid var(--line);
+      border-radius: 12px;
+      padding:10px;
+      background: rgba(0,0,0,.14);
+    }
+    .box h3{margin:0 0 6px; font-size:13px; color:var(--muted); font-weight:700}
+    .box .big{font-size:14px; line-height:1.5; white-space:pre-wrap}
+
+    /* Modal */
+    .modalOverlay{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.58);
+      display:none;
+      align-items:flex-start;
+      justify-content:center;
+      padding:16px;
+      z-index:1000;
+      overflow:auto;
+    }
+    .modalOverlay.show{display:flex}
+    .modal{
+      width:min(860px, 100%);
+      background: var(--panel);
+      border:1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+
+      margin:16px auto;
+      max-height: calc(100vh - 32px);
+      display:flex;
+      flex-direction:column;
+    }
+    .modal .hd{
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .modal .bd{
+      padding:16px;
+      overflow:auto;
+    }
+    .modal .ft{
+      padding:14px 16px;
+      border-top:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      background: rgba(0,0,0,.10);
+      position:sticky; bottom:0;
+    }
+    .grid{display:grid; grid-template-columns: 1fr 1fr; gap:12px}
+    .field{display:flex; flex-direction:column; gap:6px}
+    label{font-size:12px; color:var(--muted); font-weight:700}
+    input, select, textarea{
+      width:100%;
+      padding:10px 12px;
+      border-radius: 12px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      color: var(--text);
+      outline:none;
+    }
+    select, option{
+      background-color:#12161c;
+      color:#e7edf5;
+    }
+    textarea{min-height: 180px; resize: vertical}
+    input::placeholder, textarea::placeholder{color: rgba(154,166,178,.65)}
+    .help{font-size:12px; color: var(--muted)}
+    .footerNote{font-size:12px; color: var(--muted); line-height:1.4}
+    .pill{
+      padding:7px 10px;
+      border-radius: 999px;
+      border:1px solid var(--line);
+      background: rgba(255,255,255,.02);
+      font-size:12px;
+      color: var(--muted);
+    }
+
+    #problemList{
+      max-height: 52vh;
+      overflow:auto;
+      padding-right:6px;
+    }
+    #problemList::-webkit-scrollbar{ width:10px; }
+    #problemList::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,.10);
+      border-radius: 999px;
+    }
+    #problemList::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
+
+    @media (max-width: 900px){
+      .app{grid-template-columns: 1fr}
+      .grid{grid-template-columns: 1fr}
+      .twoCol{grid-template-columns: 1fr}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <section class="panel">
+      <div class="hd">
+        <div class="title">문제 관리</div>
+        <button class="btn primary small" id="btnOpenAdd">+ 문제 추가</button>
+      </div>
+      <div class="bd">
+        <div class="stat">
+          <div class="box">
+            <div class="k">기본 문제 수</div>
+            <div class="v" id="statBase">0</div>
+          </div>
+          <div class="box">
+            <div class="k">즐겨찾기</div>
+            <div class="v" id="statFav">0</div>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="col">
+          <div class="row">
+            <span class="pill">랜덤화</span>
+            <label style="display:flex; align-items:center; gap:8px; margin:0; font-size:12px; color:var(--muted); font-weight:700">
+              <input type="checkbox" id="toggleRandomize" style="width:auto; margin:0" />
+              켜기
+            </label>
+            <select id="randomizeCount" class="pill" style="flex:1; padding:8px 10px">
+              <option value="1">기본만</option>
+              <option value="3" selected>+ 3개 변형</option>
+              <option value="5">+ 5개 변형</option>
+              <option value="10">+ 10개 변형</option>
+            </select>
+          </div>
+          <div class="muted">
+            랜덤화 규칙: 수패(m/p/s) 3종 치환, 삼원패(5z/6z/7z) 치환,
+            풍패는 “장풍/자풍” 제외한 나머지 풍패만 swap 가능.
+            (내보내기 JSON에는 변형 문제 제외)
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="row" style="justify-content:space-between">
+          <button class="btn small" id="btnStart">랜덤 1문제</button>
+          <button class="btn small" id="btnStartFav">즐겨찾기만</button>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="row">
+          <input id="importJsonText" placeholder="(선택) JSON 붙여넣기 후 가져오기" />
+          <button class="btn small" id="btnImport">가져오기</button>
+          <button class="btn small" id="btnCopyAllJsonMain">전체 JSON 복사</button>
+          <button class="btn small" id="btnDownloadAllJsonMain">JSON 내보내기</button>
+        </div>
+        <div class="muted">JSON은 배열 형태면 OK. (예시처럼 최상단이 <code>[{...}]</code>)</div>
+
+        <div class="hr"></div>
+
+        <div class="row" style="justify-content:space-between; align-items:flex-end">
+          <div class="col" style="gap:6px">
+            <div class="title" style="font-size:14px">문제 목록</div>
+            <div class="muted">목록에서 클릭하면 해당 문제가 오른쪽에 표시됨.</div>
+          </div>
+          <button class="btn danger small" id="btnClearAll">전체 삭제</button>
+        </div>
+
+        <div class="list" id="problemList" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <main class="main">
+      <section class="card" id="flashcard">
+        <div class="top">
+          <div>
+            <h1 class="h1" id="qTitle">아직 문제를 시작하지 않았어.</h1>
+            <div class="meta2" id="qMeta"></div>
+          </div>
+
+          <div class="row" style="gap:8px; align-items:flex-start">
+            <button class="star" id="btnFavInCard" title="현재 문제 즐겨찾기">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#9aa6b2" stroke-width="2">
+                <path d="M12 17.3l-6.18 3.7 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.73 1.64 7.03z"/>
+              </svg>
+            </button>
+            <button class="btn small" id="btnPrev" disabled title="이전: 방금까지 풀었던 문제 히스토리로 이동 (PgUp)">이전 (PgUp)</button>
+            <button class="btn primary small" id="btnReveal" disabled title="정답 확인 (Enter)">정답 확인 (Enter)</button>
+            <button class="btn small" id="btnNext" disabled title="다음: 랜덤으로 새 문제를 가져옴 (PgDn)">다음 (PgDn)</button>
+          </div>
+        </div>
+
+        <div class="muted" style="margin-top:-6px; margin-bottom:10px">
+          R: 랜덤 1문제. ←/→: 선택 패 이동(기본=쯔모). 이전: 히스토리 이동. 다음: 랜덤 새 문제.
+        </div>
+
+        <div class="twoCol">
+          <div class="box">
+            <h3>도라표지패</h3>
+            <div class="rowLine" id="doraBox"></div>
+          </div>
+          <div class="box">
+            <h3>링크</h3>
+            <div class="rowLine" id="linksBox">
+              <span class="muted">정답 확인을 누르면 해설/패효율(iframe)이 아래에 표시돼.</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="box">
+          <h3>손패 (14장, 맨 오른쪽 = 쯔모)</h3>
+          <div class="tilesWrap" id="tiles"></div>
+          <div class="muted" style="margin-top:8px">←/→로 선택을 옮기거나 클릭한 다음, <b>정답 확인</b>을 눌러봐.</div>
+        </div>
+
+        <div class="result" id="result" style="display:none"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modalOverlay" id="modalOverlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="hd">
+        <div class="title" id="modalTitle">문제 추가</div>
+        <button class="btn icon" id="btnCloseModal" aria-label="닫기">✕</button>
+      </div>
+
+      <div class="bd">
+        <div class="grid">
+          <div class="field">
+            <label>문제 이름</label>
+            <input id="fTitle" placeholder="예: 타쯔오버에서 뭐 버리나?" />
+          </div>
+
+          <div class="field">
+            <label>장풍(국)</label>
+            <select id="fRound">
+              <option>동1국</option><option>동2국</option><option>동3국</option><option>동4국</option>
+              <option>남1국</option><option>남2국</option><option>남3국</option><option>남4국</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>현재 순</label>
+            <select id="fTurn"></select>
+            <div class="help">예: 1순, 2순… (여기서는 숫자만 저장)</div>
+          </div>
+
+          <div class="field">
+            <label>자풍</label>
+            <select id="fSeatWind">
+              <option value="동">동</option>
+              <option value="남">남</option>
+              <option value="서" selected>서</option>
+              <option value="북">북</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>도라표지패</label>
+            <input id="fDora" placeholder="예: 9s / 0p / 7z" />
+            <div class="help">m/p/s/z 표기. 적5는 0.</div>
+          </div>
+
+          <div class="field">
+            <label>정답(버릴 패)</label>
+            <input id="fAnswer" placeholder="예: 1m (여러개면 1m,9m 처럼)" />
+          </div>
+
+          <div class="field" style="grid-column: 1 / -1">
+            <label>패 상황 (한 줄)</label>
+            <input id="fHand" placeholder="예: 129m0789p3468s44z7m" />
+            <div class="help">
+              m=만, p=통, s=삭, z=자패(1z동 2z남 3z서 4z북 5z백 6z발 7z중), 적도라=0. 맨 오른쪽이 쯔모패.
+            </div>
+          </div>
+
+          <div class="field" style="grid-column: 1 / -1">
+            <label>해설 링크 (선택)</label>
+            <input id="fLink" placeholder="예: https://..." />
+          </div>
+
+          <div class="field" style="grid-column: 1 / -1">
+            <label>문제 해설 글 (선택, 길게)</label>
+            <textarea id="fExplanation" placeholder="해설을 여기에 적어도 되고, 링크만 넣어도 돼."></textarea>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="row" style="justify-content:space-between">
+          <div class="footerNote">※ 패효율 iframe은 자동 생성(표시만 안 함): <code>https://tenhou.net/2/?q=손패</code></div>
+          <div class="row">
+            <button class="btn small" id="btnCopyCurrentJsonInModal">현재 JSON 복사</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ft">
+        <div class="muted">저장 시 로컬스토리지에 보관됨.</div>
+        <div class="row">
+          <button class="btn" id="btnCancelModal">취소</button>
+          <button class="btn primary" id="btnSave">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const TILESET = {
+  base: "https://raw.githubusercontent.com/FluffyStuff/riichi-mahjong-tiles/master/Regular/",
+  ext: "svg",
+};
+
+function tileAssetNameFromCode(code){
+  const m = String(code).match(/^([0-9])([mpsz])$/);
+  if(!m) return null;
+  const num = m[1];
+  const suit = m[2];
+
+  if(suit === "m" || suit === "p" || suit === "s"){
+    const suitName = suit === "m" ? "Man" : (suit === "p" ? "Pin" : "Sou");
+    if(num === "0") return `${suitName}5-Dora`;
+    return `${suitName}${num}`;
+  }
+  const zMap = { "1":"Ton","2":"Nan","3":"Shaa","4":"Pei","5":"Haku","6":"Hatsu","7":"Chun" };
+  return zMap[num] || null;
+}
+function tileImgUrl(code){
+  const name = tileAssetNameFromCode(code);
+  if(!name) return null;
+  return `${TILESET.base}${name}.${TILESET.ext}`;
+}
+
+const LS_KEY = "nanikiru.baseProblems.v1";
+function loadBaseProblems(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return [];
+    const arr = JSON.parse(raw);
+    if(!Array.isArray(arr)) return [];
+    return arr;
+  }catch{ return []; }
+}
+function saveBaseProblems(arr){
+  localStorage.setItem(LS_KEY, JSON.stringify(arr));
+}
+
+const SUITS = new Set(["m","p","s","z"]);
+const WIND_KR = ["동","남","서","북"];
+function cleanMpsz(str){
+  return (str||"").trim().replace(/\s+/g,"").replace(/\|/g,"");
+}
+function parseMpszHand(handStr){
+  const s = cleanMpsz(handStr);
+  let digits = "";
+  const tiles = [];
+  for(const ch of s){
+    if(/[0-9]/.test(ch)){ digits += ch; continue; }
+    if(SUITS.has(ch)){
+      if(!digits) throw new Error("수패/자패 숫자 뒤에 m/p/s/z가 와야 해.");
+      for(const d of digits) tiles.push(`${d}${ch}`);
+      digits = "";
+      continue;
+    }
+    throw new Error(`허용되지 않는 문자: ${ch}`);
+  }
+  if(digits) throw new Error("마지막에 m/p/s/z가 빠졌어.");
+  return tiles;
+}
+function isTileCode(t){
+  return /^[0-9][mpsz]$/.test(t);
+}
+function normalizeRound(roundStr){ return roundStr; }
+function tenhouUrlFromHand(handStr){
+  const q = encodeURIComponent(cleanMpsz(handStr));
+  return `https://tenhou.net/2/?q=${q}`;
+}
+
+const SUIT_PRIORITY = { m: 0, p: 1, s: 2, z: 3 };
+function sortKey(tile){
+  const num = parseInt(tile[0], 10);
+  const suit = tile[1];
+  const n = (num === 0 ? 5 : num);
+  return [SUIT_PRIORITY[suit] ?? 9, n, tile];
+}
+function orderTilesForDisplay(handStr){
+  const tiles = parseMpszHand(handStr);
+  if(tiles.length === 0) return tiles;
+  const tsumo = tiles[tiles.length - 1];
+  const rest = tiles.slice(0, -1);
+  rest.sort((a,b)=>{
+    const ka = sortKey(a), kb = sortKey(b);
+    for(let i=0;i<ka.length;i++){
+      if(ka[i] < kb[i]) return -1;
+      if(ka[i] > kb[i]) return 1;
+    }
+    return 0;
+  });
+  return [...rest, tsumo];
+}
+
+function roundWindFromRound(roundStr){
+  if(String(roundStr).startsWith("동")) return "1z";
+  if(String(roundStr).startsWith("남")) return "2z";
+  return "1z";
+}
+function seatWindToZ(seatWindKr){
+  const idx = WIND_KR.indexOf(seatWindKr);
+  return `${idx+1}z`;
+}
+function applyMappingToTile(tile, map){
+  const m = tile.match(/^([0-9])([mpsz])$/);
+  if(!m) return tile;
+  const num = m[1], suit = m[2];
+
+  if(suit === "m" || suit === "p" || suit === "s"){
+    const newSuit = map.suit?.[suit] || suit;
+    return `${num}${newSuit}`;
+  }
+  const z = `${num}z`;
+  if(map.dragon && (z==="5z"||z==="6z"||z==="7z")) return map.dragon[z] || z;
+  if(map.wind && (z==="1z"||z==="2z"||z==="3z"||z==="4z")) return map.wind[z] || z;
+  return z;
+}
+function tilesToMpszString(tiles){
+  let out = "", buf = "", curSuit = null;
+  for(const t of tiles){
+    const m = t.match(/^([0-9])([mpsz])$/);
+    if(!m) continue;
+    const d = m[1], s = m[2];
+    if(curSuit === null){ curSuit = s; buf = d; }
+    else if(s === curSuit){ buf += d; }
+    else{ out += buf + curSuit; curSuit = s; buf = d; }
+  }
+  if(curSuit !== null) out += buf + curSuit;
+  return out;
+}
+function applyMappingToHandStr(handStr, map){
+  const tiles = parseMpszHand(handStr);
+  const mapped = tiles.map(t => applyMappingToTile(t, map));
+  return tilesToMpszString(mapped);
+}
+function randomPermutation(arr){
+  const a = [...arr];
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+function makeRandomMapForProblem(base){
+  const suits = ["m","p","s"];
+  const perm = randomPermutation(suits);
+  const suitMap = { m: perm[0], p: perm[1], s: perm[2] };
+
+  const dragons = ["5z","6z","7z"];
+  const dperm = randomPermutation(dragons);
+  const dragonMap = { "5z": dperm[0], "6z": dperm[1], "7z": dperm[2] };
+
+  const fixed = new Set([roundWindFromRound(base.round), seatWindToZ(base.seatWind)]);
+  const winds = ["1z","2z","3z","4z"];
+  const free = winds.filter(w => !fixed.has(w));
+  const windMap = {};
+  if(free.length === 2 && Math.random() < 0.5){
+    windMap[free[0]] = free[1];
+    windMap[free[1]] = free[0];
+  }
+  return { suit: suitMap, dragon: dragonMap, wind: windMap };
+}
+function makeVariantProblem(base){
+  const map = makeRandomMapForProblem(base);
+  const v = structuredClone(base);
+  v._isVariant = true;
+  v._baseId = base.id;
+  v._map = map;
+  v.hand = applyMappingToHandStr(base.hand, map);
+  v.answer = applyMappingToTile(base.answer, map);
+  v.doraIndicator = applyMappingToTile(base.doraIndicator, map);
+  return v;
+}
+
+let baseProblems = loadBaseProblems();
+let quizPool = [];
+let history = [];
+let idx = -1;
+let revealed = false;
+let selected = null;
+let selectedIndex = null;
+
+function rebuildQuizPool(){
+  const enable = document.getElementById("toggleRandomize").checked;
+  const n = parseInt(document.getElementById("randomizeCount").value, 10) || 1;
+  const pool = [];
+  for(const p of baseProblems){
+    pool.push({...p, _isVariant:false});
+    if(enable && n > 1){
+      for(let i=0;i<n;i++) pool.push(makeVariantProblem(p));
+    }
+  }
+  quizPool = pool;
+}
+
+const $ = (id)=>document.getElementById(id);
+
+function setStats(){
+  $("statBase").textContent = baseProblems.length;
+  $("statFav").textContent = baseProblems.filter(p=>p.isFavorite).length;
+}
+
+function getBaseProblemRefFromAny(q){
+  if(!q) return null;
+  const id = q._isVariant ? q._baseId : q.id;
+  return baseProblems.find(p => p.id === id) || null;
+}
+
+function setStarButtonVisual(isOn){
+  const btn = $("btnFavInCard");
+  if(!btn) return;
+  btn.classList.toggle("on", !!isOn);
+  const svg = btn.querySelector("svg");
+  if(svg){
+    svg.setAttribute("fill", isOn ? "#ffd34d" : "none");
+    svg.setAttribute("stroke", isOn ? "#ffd34d" : "#9aa6b2");
+  }
+}
+
+function syncCardFavoriteButton(){
+  const q = history[idx];
+  const ref = getBaseProblemRefFromAny(q);
+  setStarButtonVisual(ref ? !!ref.isFavorite : false);
+}
+
+function loadSpecificProblem(baseProblem){
+  if(!baseProblem) return;
+  history = [{...baseProblem, _isVariant:false}];
+  idx = 0;
+  renderCurrent();
+}
+
+function renderProblemList(){
+  const root = $("problemList");
+  root.innerHTML = "";
+  if(baseProblems.length === 0){
+    const div = document.createElement("div");
+    div.className = "muted";
+    div.textContent = "아직 문제가 없어. ‘문제 추가’로 시작해줘.";
+    root.appendChild(div);
+    return;
+  }
+
+  for(const p of baseProblems){
+    const it = document.createElement("div");
+    it.className = "item";
+    it.style.cursor = "pointer";
+    it.title = "클릭하면 이 문제를 불러옵니다";
+    it.addEventListener("click", ()=> loadSpecificProblem(p));
+
+    const left = document.createElement("div");
+    left.className = "meta";
+
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = p.title || "(제목 없음)";
+    left.appendChild(name);
+
+    const right = document.createElement("div");
+    right.className = "row";
+    right.style.gap = "8px";
+
+    const star = document.createElement("button");
+    star.className = "star" + (p.isFavorite ? " on": "");
+    star.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="${p.isFavorite ? "#ffd34d":"none"}" stroke="${p.isFavorite ? "#ffd34d":"#9aa6b2"}" stroke-width="2">
+        <path d="M12 17.3l-6.18 3.7 1.64-7.03L2 9.24l7.19-.61L12 2l2.81 6.63 7.19.61-5.46 4.73 1.64 7.03z"/>
+      </svg>
+    `;
+    star.title = "즐겨찾기";
+    star.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      p.isFavorite = !p.isFavorite;
+      saveBaseProblems(baseProblems);
+      setStats();
+      renderProblemList();
+      syncCardFavoriteButton();
+    });
+
+    const del = document.createElement("button");
+    del.className = "btn small danger";
+    del.textContent = "삭제";
+    del.addEventListener("click", (e)=>{
+      e.stopPropagation();
+      if(!confirm("이 문제를 삭제할까?")) return;
+      baseProblems = baseProblems.filter(x=>x.id !== p.id);
+      saveBaseProblems(baseProblems);
+      setStats();
+      renderProblemList();
+      rebuildQuizPool();
+
+      const cur = history[idx];
+      if(cur && ((!cur._isVariant && cur.id === p.id) || (cur._isVariant && cur._baseId === p.id))){
+        history = [];
+        idx = -1;
+        setCardEmpty();
+      }
+    });
+
+    right.appendChild(star);
+    right.appendChild(del);
+
+    it.appendChild(left);
+    it.appendChild(right);
+    root.appendChild(it);
+  }
+}
+
+function tileEl(tile, opts={}){
+  const btn = document.createElement("button");
+  btn.className = "tileBtn" + (opts.tsumo ? " tsumo" : "");
+  btn.type = "button";
+  btn.dataset.tile = tile;
+
+  const face = document.createElement("div");
+  face.className = "tileFace";
+
+  const url = tileImgUrl(tile);
+  const img = document.createElement("img");
+  img.className = "tileSvg";
+  img.alt = tile;
+  if(url) img.src = url;
+
+  img.onerror = () => {
+    const t = document.createElement("div");
+    t.className = "tileTextFallback";
+    t.textContent = tile;
+    face.appendChild(t);
+    img.remove();
+  };
+
+  face.appendChild(img);
+  btn.appendChild(face);
+  return btn;
+}
+
+function setCardEmpty(){
+  $("qTitle").textContent = "아직 문제를 시작하지 않았어.";
+  $("qMeta").innerHTML = "";
+  $("tiles").innerHTML = "";
+  $("doraBox").innerHTML = `<span class="muted">-</span>`;
+  $("linksBox").innerHTML = `<span class="muted">정답 확인을 누르면 해설/패효율(iframe)이 아래에 표시돼.</span>`;
+  $("result").style.display = "none";
+  $("btnReveal").disabled = true;
+  $("btnNext").disabled = true;
+  $("btnPrev").disabled = true;
+  setStarButtonVisual(false);
+
+  revealed = false;
+  selected = null;
+  selectedIndex = null;
+}
+
+function highlightSelectedTile(){
+  const all = [...$("tiles").querySelectorAll(".tileBtn")];
+  all.forEach(x=>x.classList.remove("selected"));
+  if(selectedIndex === null) return;
+  const b = all.find(x => Number(x.dataset.index) === selectedIndex);
+  if(b) b.classList.add("selected");
+}
+
+function renderCurrent(){
+  const p = history[idx];
+  if(!p){ setCardEmpty(); return; }
+
+  revealed = false;
+  $("result").style.display = "none";
+  $("btnReveal").disabled = false;
+  $("btnNext").disabled = true;
+  $("btnPrev").disabled = idx <= 0;
+
+  $("qTitle").textContent = p.title || "(제목 없음)";
+  $("qMeta").innerHTML = "";
+  const meta = [`${p.round}`, `${p.turn}순`, `자풍 ${p.seatWind}`, p._isVariant ? "랜덤화 변형" : "기본 문제"];
+  for(const m of meta){
+    const sp = document.createElement("span");
+    sp.className = "chip";
+    sp.textContent = m;
+    $("qMeta").appendChild(sp);
+  }
+
+  $("doraBox").innerHTML = "";
+  if(p.doraIndicator && isTileCode(p.doraIndicator)){
+    $("doraBox").appendChild(tileEl(p.doraIndicator, {tsumo:false}));
+    const t = document.createElement("span");
+    t.className = "badge";
+    t.textContent = p.doraIndicator;
+    $("doraBox").appendChild(t);
+  }else{
+    $("doraBox").innerHTML = `<span class="muted">도라표지패가 없거나 형식이 잘못됨</span>`;
+  }
+
+  $("linksBox").innerHTML = `<span class="muted">정답 확인을 누르면 해설 링크/패효율(iframe)이 표시돼.</span>`;
+
+  const tiles = orderTilesForDisplay(p.hand);
+  $("tiles").innerHTML = "";
+
+  tiles.forEach((t,i)=>{
+    const btn = tileEl(t, {tsumo: i === tiles.length-1});
+    btn.dataset.index = String(i);
+
+    btn.addEventListener("click", ()=>{
+      if(revealed) return;
+      selectedIndex = i;
+      selected = tiles[selectedIndex];
+      highlightSelectedTile();
+    });
+
+    $("tiles").appendChild(btn);
+  });
+
+  // ✅ 기본 선택 = 쯔모
+  selectedIndex = tiles.length ? tiles.length - 1 : null;
+  selected = (selectedIndex !== null) ? tiles[selectedIndex] : null;
+  highlightSelectedTile();
+
+  syncCardFavoriteButton();
+}
+
+function escapeHtml(s){
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#39;");
+}
+
+function parseAnswerList(answerStr){
+  const s = String(answerStr || "");
+  const matches = s.match(/[0-9][mpsz]/g);
+  return matches ? [...new Set(matches)] : [];
+}
+
+function reveal(){
+  const p = history[idx];
+  if(!p) return;
+
+  // 기본 선택(쯔모) 포함
+  if(selectedIndex === null || !selected){
+    alert("선택된 패가 없어. (버그)"); 
+    return;
+  }
+
+  revealed = true;
+
+  const answers = parseAnswerList(p.answer);
+  const correctOne = answers[0] || p.answer;
+  const ok = answers.length ? answers.includes(selected) : (selected === p.answer);
+
+  const btns = [...$("tiles").querySelectorAll(".tileBtn")];
+  btns.forEach(b=>b.classList.remove("correct","wrong"));
+
+  // ✅ 내가 고른 '그 인덱스' 버튼에 하이라이트
+  const pickedBtn = btns.find(b => Number(b.dataset.index) === selectedIndex);
+  if(pickedBtn) pickedBtn.classList.add(ok ? "correct" : "wrong");
+
+  // ✅ 오답이면 정답패(여러 장 있어도 1장만) 녹색 하이라이트
+  if(!ok){
+    const correctBtn = btns.find(b => (b.dataset.tile || "").trim() === String(correctOne).trim());
+    if(correctBtn) correctBtn.classList.add("correct");
+  }
+
+  const tenhou = tenhouUrlFromHand(p.hand) + "#m2";
+
+  $("result").style.display = "flex";
+  $("result").innerHTML = `
+    <div class="rowLine">
+      <span class="badge ${ok ? "good":"bad"}">${ok ? "정답!" : "오답"}</span>
+      <span class="badge">내 선택: <b>${selected}</b></span>
+      <span class="badge">정답: <b>${escapeHtml(answers.length ? answers.join(", ") : p.answer)}</b></span>
+      <span class="badge">도라표지: <b>${p.doraIndicator || "-"}</b></span>
+    </div>
+
+    <div class="rowLine" style="margin-top:2px">
+      <span class="badge">해설 링크</span>
+      ${
+        p.explanationLink
+          ? `<a href="${p.explanationLink}" target="_blank" rel="noreferrer">${p.explanationLink}</a>`
+          : `<span class="muted">없음</span>`
+      }
+    </div>
+
+    <div class="twoCol">
+      <div class="box">
+        <h3>해설</h3>
+        <div class="big">${p.explanation ? escapeHtml(p.explanation) : `<span class="muted">해설 글 없음</span>`}</div>
+      </div>
+
+      <div class="box">
+        <h3>패효율 (Tenhou iframe)</h3>
+        <iframe
+          title="Tenhou"
+          src="${tenhou}"
+          style="width:100%; height:520px; border:1px solid var(--line); border-radius:12px; background:#fff"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+        ></iframe>
+        <div class="muted" style="margin-top:6px">
+          ※ iframe 내부 텍스트 자동 복사/읽기는 동일 출처 정책 때문에 불가.
+        </div>
+      </div>
+    </div>
+  `;
+
+  $("btnNext").disabled = false;
+}
+
+function pickRandom(pool){
+  if(pool.length === 0) return null;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+function startRandom(favoritesOnly=false){
+  rebuildQuizPool();
+  const pool = favoritesOnly ? quizPool.filter(p=>p.isFavorite && !p._isVariant) : quizPool;
+  if(pool.length === 0){
+    alert("선택한 조건의 문제가 없어. (즐겨찾기만 시작이면 즐겨찾기 문제를 먼저 추가해줘)");
+    return;
+  }
+  const q = pickRandom(pool);
+  history = [q];
+  idx = 0;
+  renderCurrent();
+}
+function nextRandom(){
+  rebuildQuizPool();
+  const pool = quizPool;
+  if(pool.length === 0) return;
+  const q = pickRandom(pool);
+  history = history.slice(0, idx+1);
+  history.push(q);
+  idx++;
+  renderCurrent();
+}
+function prev(){
+  if(idx <= 0) return;
+  idx--;
+  renderCurrent();
+}
+
+function openModal(){
+  $("modalOverlay").classList.add("show");
+  $("modalOverlay").setAttribute("aria-hidden","false");
+}
+function closeModal(){
+  $("modalOverlay").classList.remove("show");
+  $("modalOverlay").setAttribute("aria-hidden","true");
+}
+function resetAddForm(){
+  $("fTitle").value = "";
+  $("fRound").value = "동1국";
+  $("fTurn").value = "1";
+  $("fSeatWind").value = "서";
+  $("fDora").value = "";
+  $("fHand").value = "";
+  $("fAnswer").value = "";
+  $("fLink").value = "";
+  $("fExplanation").value = "";
+}
+
+function saveFromForm(){
+  const title = $("fTitle").value.trim();
+  const round = normalizeRound($("fRound").value);
+  const turn = parseInt($("fTurn").value, 10) || 1;
+  const seatWind = $("fSeatWind").value;
+  const dora = cleanMpsz($("fDora").value);
+  const hand = cleanMpsz($("fHand").value);
+  const answer = cleanMpsz($("fAnswer").value);
+  const explanationLink = $("fLink").value.trim();
+  const explanation = $("fExplanation").value;
+
+  if(!hand) { alert("패 상황을 입력해줘."); return; }
+  let tiles;
+  try{ tiles = parseMpszHand(hand); }
+  catch(e){ alert("패 상황 형식 오류: " + e.message); return; }
+  if(tiles.length !== 14){
+    alert(`손패는 14장이어야 해. 지금은 ${tiles.length}장으로 인식됨.`);
+    return;
+  }
+
+  const answers = parseAnswerList(answer);
+  if(answers.length === 0){
+    alert("정답은 예: 1m / 0p / 7z (여러개면 1m,9m) 처럼 입력해줘.");
+    return;
+  }
+  if(!dora || !isTileCode(dora)){
+    alert("도라표지패는 예: 9s / 0p / 7z 처럼 2글자 형태로 입력해줘.");
+    return;
+  }
+  if(!WIND_KR.includes(seatWind)){
+    alert("자풍은 동/남/서/북 중 하나여야 해.");
+    return;
+  }
+
+  const problem = {
+    id: crypto.randomUUID(),
+    title,
+    round,
+    turn,
+    seatWind,
+    doraIndicator: dora,
+    hand,
+    answer: answers.join(","),
+    explanationLink,
+    explanation,
+    isFavorite: false,
+  };
+
+  baseProblems.unshift(problem);
+  saveBaseProblems(baseProblems);
+  setStats();
+  renderProblemList();
+  rebuildQuizPool();
+  closeModal();
+}
+
+function exportJsonArrayForUser(){
+  return baseProblems.map(p => ({
+    title: p.title || "",
+    round: p.round,
+    turn: p.turn,
+    seatWind: p.seatWind,
+    doraIndicator: p.doraIndicator,
+    hand: p.hand,
+    answer: p.answer,
+    explanationLink: p.explanationLink || "",
+    explanation: p.explanation || "",
+    isFavorite: !!p.isFavorite,
+  }));
+}
+async function copyAllJson(){
+  const text = JSON.stringify(exportJsonArrayForUser(), null, 2);
+  try{
+    await navigator.clipboard.writeText(text);
+    alert("전체 JSON을 클립보드에 복사했어.");
+  }catch{
+    prompt("복사가 막혔어. 아래를 복사해줘:", text);
+  }
+}
+function downloadAllJson(){
+  const text = JSON.stringify(exportJsonArrayForUser(), null, 2);
+  const blob = new Blob([text], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "nanikiru_problems.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+async function copyCurrentJsonFromForm(){
+  const obj = {
+    title: $("fTitle").value.trim(),
+    round: normalizeRound($("fRound").value),
+    turn: parseInt($("fTurn").value, 10) || 1,
+    seatWind: $("fSeatWind").value,
+    doraIndicator: cleanMpsz($("fDora").value),
+    hand: cleanMpsz($("fHand").value),
+    answer: cleanMpsz($("fAnswer").value),
+    explanationLink: $("fLink").value.trim(),
+    explanation: $("fExplanation").value,
+    isFavorite: false
+  };
+  const text = JSON.stringify(obj, null, 2);
+  try{
+    await navigator.clipboard.writeText(text);
+    alert("현재 입력중인 내용을 단일 JSON으로 복사했어.");
+  }catch{
+    prompt("복사가 막혔어. 아래를 복사해줘:", text);
+  }
+}
+function importFromText(txt){
+  let data;
+  try{ data = JSON.parse(txt); }
+  catch{ alert("JSON 파싱 실패"); return; }
+
+  const arr = Array.isArray(data) ? data : (Array.isArray(data.problems) ? data.problems : null);
+  if(!arr){ alert("가져올 JSON이 배열 형태가 아니야."); return; }
+
+  const imported = [];
+  for(const raw of arr){
+    if(!raw) continue;
+
+    const title = (raw.title ?? "").toString();
+    const round = normalizeRound((raw.round ?? "동1국").toString());
+    const turn = parseInt(raw.turn ?? 1, 10) || 1;
+    const seatWind = (raw.seatWind ?? "동").toString();
+    const dora = cleanMpsz(raw.doraIndicator ?? "");
+    const hand = cleanMpsz(raw.hand ?? "");
+    const answer = String(raw.answer ?? "");
+    const explanationLink = (raw.explanationLink ?? "").toString();
+    const explanation = (raw.explanation ?? "").toString();
+    const isFavorite = !!raw.isFavorite;
+
+    try{
+      const tiles = parseMpszHand(hand);
+      if(tiles.length !== 14) continue;
+      const answers = parseAnswerList(answer);
+      if(answers.length === 0) continue;
+      if(!isTileCode(dora)) continue;
+      if(!WIND_KR.includes(seatWind)) continue;
+
+      imported.push({
+        id: crypto.randomUUID(),
+        title, round, turn, seatWind,
+        doraIndicator: dora,
+        hand,
+        answer: answers.join(","),
+        explanationLink, explanation, isFavorite,
+      });
+    }catch{}
+  }
+
+  if(imported.length === 0){
+    alert("유효한 문제를 하나도 가져오지 못했어. (손패14장/정답/도라 형식 확인)");
+    return;
+  }
+
+  baseProblems = [...imported, ...baseProblems];
+  saveBaseProblems(baseProblems);
+  setStats();
+  renderProblemList();
+  rebuildQuizPool();
+  alert(`${imported.length}개 문제를 가져왔어.`);
+}
+
+function isTypingInInput(){
+  const el = document.activeElement;
+  if(!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
+}
+window.addEventListener("keydown", (e)=>{
+  const modalOpen = $("modalOverlay")?.classList.contains("show");
+  if(modalOpen) return;
+  if(isTypingInInput()) return;
+
+  if(e.key === "Enter"){
+    const btn = $("btnReveal");
+    if(btn && !btn.disabled){ e.preventDefault(); btn.click(); }
+  }
+  if(e.key === "PageDown"){
+    const btn = $("btnNext");
+    if(btn && !btn.disabled){ e.preventDefault(); btn.click(); }
+  }
+  if(e.key === "PageUp"){
+    const btn = $("btnPrev");
+    if(btn && !btn.disabled){ e.preventDefault(); btn.click(); }
+  }
+
+  // ✅ R 키로 랜덤 1문제
+  if(e.key === "r" || e.key === "R"){
+    const btn = $("btnStart");
+    if(btn && !btn.disabled){ e.preventDefault(); btn.click(); }
+  }
+
+  // ✅ 좌/우 화살표로 선택 이동
+  if(e.key === "ArrowLeft" || e.key === "ArrowRight"){
+    if(revealed) return;
+    const btns = [...$("tiles").querySelectorAll(".tileBtn")];
+    if(btns.length === 0) return;
+
+    if(selectedIndex === null) selectedIndex = btns.length - 1;
+
+    if(e.key === "ArrowLeft") selectedIndex = Math.max(0, selectedIndex - 1);
+    if(e.key === "ArrowRight") selectedIndex = Math.min(btns.length - 1, selectedIndex + 1);
+
+    selected = btns[selectedIndex]?.dataset.tile || selected;
+
+    btns.forEach(b=>b.classList.remove("selected"));
+    const picked = btns.find(b=>Number(b.dataset.index)===selectedIndex);
+    if(picked) picked.classList.add("selected");
+
+    e.preventDefault();
+  }
+});
+
+function init(){
+  const turnSel = $("fTurn");
+  for(let i=1;i<=18;i++){
+    const opt = document.createElement("option");
+    opt.value = String(i);
+    opt.textContent = `${i}순`;
+    turnSel.appendChild(opt);
+  }
+  turnSel.value = "1";
+
+  $("btnOpenAdd").addEventListener("click", ()=>{ resetAddForm(); openModal(); });
+  $("btnCloseModal").addEventListener("click", closeModal);
+  $("btnCancelModal").addEventListener("click", closeModal);
+  $("modalOverlay").addEventListener("click", (e)=>{ if(e.target === $("modalOverlay")) closeModal(); });
+  window.addEventListener("keydown", (e)=>{ if(e.key === "Escape" && $("modalOverlay").classList.contains("show")) closeModal(); });
+
+  $("btnSave").addEventListener("click", saveFromForm);
+  $("btnCopyCurrentJsonInModal").addEventListener("click", copyCurrentJsonFromForm);
+
+  $("btnImport").addEventListener("click", ()=>{
+    const txt = $("importJsonText").value.trim();
+    if(!txt){ alert("가져올 JSON을 먼저 붙여넣어줘."); return; }
+    importFromText(txt);
+    $("importJsonText").value = "";
+  });
+
+  $("btnCopyAllJsonMain").addEventListener("click", copyAllJson);
+  $("btnDownloadAllJsonMain").addEventListener("click", downloadAllJson);
+
+  $("btnClearAll").addEventListener("click", ()=>{
+    if(!confirm("정말 전체 삭제할까? (되돌리기 어려움)")) return;
+    baseProblems = [];
+    saveBaseProblems(baseProblems);
+    setStats();
+    renderProblemList();
+    rebuildQuizPool();
+    history = [];
+    idx = -1;
+    setCardEmpty();
+  });
+
+  $("btnStart").addEventListener("click", ()=>startRandom(false));
+  $("btnStartFav").addEventListener("click", ()=>startRandom(true));
+
+  $("btnReveal").addEventListener("click", reveal);
+  $("btnNext").addEventListener("click", nextRandom);
+  $("btnPrev").addEventListener("click", prev);
+
+  $("btnFavInCard").addEventListener("click", ()=>{
+    const q = history[idx];
+    const ref = getBaseProblemRefFromAny(q);
+    if(!ref) return;
+    ref.isFavorite = !ref.isFavorite;
+    saveBaseProblems(baseProblems);
+    setStats();
+    renderProblemList();
+    syncCardFavoriteButton();
+  });
+
+  $("toggleRandomize").addEventListener("change", rebuildQuizPool);
+  $("randomizeCount").addEventListener("change", rebuildQuizPool);
+
+  setStats();
+  renderProblemList();
+  rebuildQuizPool();
+  setCardEmpty();
+}
+init();
+</script>
+</body>
+</html>
