@@ -209,7 +209,7 @@
     .box h3{margin:0 0 6px; font-size:13px; color:var(--muted); font-weight:700}
     .box .big{font-size:14px; line-height:1.5; white-space:pre-wrap}
 
-    /* 종류 치환 레이블 */
+    /* 체크박스+레이블 공통 스타일 */
     .swapLabel{
       display:flex;
       align-items:center;
@@ -363,13 +363,18 @@
               <option value="10">+ 10개 변형</option>
             </select>
           </div>
-        </div>
 
-        <div class="hr"></div>
+          <div class="row" style="justify-content:space-between">
+            <label class="swapLabel" title="체크: 다음 문제가 무작위(셔플)로 선택됩니다. 해제: 현재 선택된 문제의 다음 문제를 선택합니다.">
+              <input type="checkbox" id="toggleShuffle" checked />
+              셔플
+            </label>
 
-        <div class="row" style="justify-content:space-between">
-          <button class="btn small" id="btnStart">랜덤 1문제</button>
-          <button class="btn small" id="btnStartFav">즐겨찾기만</button>
+            <label class="swapLabel" title="체크: 즐겨찾기 문제만 대상으로 문제를 선택합니다.">
+              <input type="checkbox" id="toggleFavOnly" />
+              즐겨찾기만
+            </label>
+          </div>
         </div>
 
         <div class="hr"></div>
@@ -412,15 +417,14 @@
             </button>
             <button class="btn small" id="btnPrev" disabled title="이전: 방금까지 풀었던 문제 히스토리로 이동 (PgUp)">이전 (PgUp)</button>
             <button class="btn primary small" id="btnReveal" disabled title="정답 확인 (Enter)">정답 확인 (Enter)</button>
-            <button class="btn small" id="btnNext" disabled title="다음: 랜덤으로 새 문제를 가져옴 (PgDn)">다음 (PgDn)</button>
+            <button class="btn small" id="btnNext" disabled title="다음: 조건(셔플/즐겨찾기만/종류치환)에 따라 새 문제 선택 (PgDn)">다음 (PgDn)</button>
           </div>
         </div>
 
         <div class="muted" style="margin-top:-6px; margin-bottom:10px">
-          R: 랜덤 1문제. ←/→: 선택 패 이동(기본=쯔모). 같은 패를 한 번 더 클릭: 정답 확인. 이전: 히스토리 이동. 다음: 랜덤 새 문제.
+          Enter: 정답 확인. ←/→: 선택 패 이동(기본=쯔모). 같은 패를 한 번 더 클릭: 정답 확인. 이전(PgUp): 히스토리 이동. 다음(PgDn): 조건에 따라 새 문제.
         </div>
 
-        <!-- ✅ 도라표지패 박스(현재 정보 통합)만 유지 -->
         <div class="twoCol" style="grid-template-columns: 1fr;">
           <div class="box">
             <h3>현재 정보</h3>
@@ -562,6 +566,11 @@ function loadBaseProblems(){
     if(!raw) return [];
     const arr = JSON.parse(raw);
     if(!Array.isArray(arr)) return [];
+    // 기존 저장본에 id가 없을 수 있어 보정
+    for(const p of arr){
+      if(!p.id) p.id = crypto.randomUUID();
+      if(typeof p.isFavorite !== "boolean") p.isFavorite = !!p.isFavorite;
+    }
     return arr;
   }catch{ return []; }
 }
@@ -703,17 +712,26 @@ function makeVariantProblem(base){
   return v;
 }
 
+/* ===== 상태 ===== */
 let baseProblems = loadBaseProblems();
-let quizPool = [];
+let quizPool = [];      // base + (옵션) 변형
 let history = [];
 let idx = -1;
 let revealed = false;
 let selected = null;
 let selectedIndex = null;
 
+const $ = (id)=>document.getElementById(id);
+
+/* ===== 필터/모드 ===== */
+function favoritesOnlyOn(){ return $("toggleFavOnly")?.checked; }
+function shuffleOn(){ return $("toggleShuffle")?.checked; }
+
+/* ===== 풀 빌드(종류 치환) ===== */
 function rebuildQuizPool(){
-  const enable = document.getElementById("toggleRandomize").checked;
-  const n = parseInt(document.getElementById("randomizeCount").value, 10) || 1;
+  const enable = $("toggleRandomize").checked;
+  const n = parseInt($("randomizeCount").value, 10) || 1;
+
   const pool = [];
   for(const p of baseProblems){
     pool.push({...p, _isVariant:false});
@@ -724,8 +742,78 @@ function rebuildQuizPool(){
   quizPool = pool;
 }
 
-const $ = (id)=>document.getElementById(id);
+function syncRandomizeUi(){
+  const on = $("toggleRandomize").checked;
+  $("randomizeCount").disabled = !on;
+}
 
+/* ===== 선택 가능한 기본 리스트(순차용) ===== */
+function getActiveBaseList(){
+  const list = favoritesOnlyOn()
+    ? baseProblems.filter(p => !!p.isFavorite)
+    : baseProblems;
+  return list;
+}
+
+/* ===== 셔플용 풀(필터 적용, 변형 포함 가능) ===== */
+function getActivePoolForShuffle(){
+  const pool = quizPool;
+  if(!favoritesOnlyOn()) return pool;
+
+  const favIds = new Set(baseProblems.filter(p=>p.isFavorite).map(p=>p.id));
+  return pool.filter(q => q._isVariant ? favIds.has(q._baseId) : favIds.has(q.id));
+}
+
+/* ===== 현재 문제의 "기본 문제 id" 얻기 ===== */
+function baseIdOf(q){
+  if(!q) return null;
+  return q._isVariant ? q._baseId : q.id;
+}
+
+/* ===== 다음 문제 선택(핵심) ===== */
+function pickRandom(pool, avoidBaseId=null){
+  if(pool.length === 0) return null;
+  if(pool.length === 1) return pool[0];
+
+  // 가능한 경우 현재와 같은 baseId는 한 번 피해보기
+  for(let k=0;k<6;k++){
+    const q = pool[Math.floor(Math.random()*pool.length)];
+    if(avoidBaseId && baseIdOf(q) === avoidBaseId) continue;
+    return q;
+  }
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+function pickNextSequentialBase(afterBaseId=null){
+  const list = getActiveBaseList();
+  if(list.length === 0) return null;
+
+  let i = 0;
+  if(afterBaseId){
+    const found = list.findIndex(p => p.id === afterBaseId);
+    i = (found >= 0) ? (found + 1) : 0;
+  }
+  if(i >= list.length) i = 0; // 순환
+  return {...list[i], _isVariant:false};
+}
+
+/* ===== 메인: 다음 문제 생성 ===== */
+function chooseNextQuestion(){
+  rebuildQuizPool();
+
+  const cur = history[idx] || null;
+  const curBaseId = baseIdOf(cur);
+
+  if(shuffleOn()){
+    const pool = getActivePoolForShuffle();
+    return pickRandom(pool, curBaseId);
+  }else{
+    // 순차 모드: 변형은 무시하고 "기본 문제"만 리스트 순서대로
+    return pickNextSequentialBase(curBaseId);
+  }
+}
+
+/* ===== UI ===== */
 function setStats(){
   $("statBase").textContent = baseProblems.length;
   $("statFav").textContent = baseProblems.filter(p=>p.isFavorite).length;
@@ -747,7 +835,6 @@ function setStarButtonVisual(isOn){
     svg.setAttribute("stroke", isOn ? "#ffd34d" : "#9aa6b2");
   }
 }
-
 function syncCardFavoriteButton(){
   const q = history[idx];
   const ref = getBaseProblemRefFromAny(q);
@@ -805,7 +892,9 @@ function renderProblemList(){
       saveBaseProblems(baseProblems);
       setStats();
       renderProblemList();
+      rebuildQuizPool();
       syncCardFavoriteButton();
+      ensureCurrentStillSelectable();
     });
 
     const del = document.createElement("button");
@@ -814,17 +903,20 @@ function renderProblemList(){
     del.addEventListener("click", (e)=>{
       e.stopPropagation();
       if(!confirm("이 문제를 삭제할까?")) return;
-      baseProblems = baseProblems.filter(x=>x.id !== p.id);
+      const delId = p.id;
+      baseProblems = baseProblems.filter(x=>x.id !== delId);
       saveBaseProblems(baseProblems);
       setStats();
       renderProblemList();
       rebuildQuizPool();
 
       const cur = history[idx];
-      if(cur && ((!cur._isVariant && cur.id === p.id) || (cur._isVariant && cur._baseId === p.id))){
+      if(cur && baseIdOf(cur) === delId){
         history = [];
         idx = -1;
         setCardEmpty();
+      }else{
+        ensureCurrentStillSelectable();
       }
     });
 
@@ -904,7 +996,7 @@ function escapeHtml(s){
     .replaceAll("'","&#39;");
 }
 
-/* ✅ Enter / 버튼 / 재클릭 동작을 완전히 통일 */
+/* Enter / 버튼 / 재클릭 동작 통일 */
 function attemptReveal(){
   const p = history[idx];
   if(!p) return;
@@ -936,14 +1028,12 @@ function renderCurrent(){
 
   $("qTitle").textContent = p.title || "(제목 없음)";
 
-  /* ✅ qMeta 중복 제거: 기본/변형 + 즐겨찾기만 */
   $("qMeta").innerHTML = "";
   const ref = getBaseProblemRefFromAny(p);
   const meta = [
     p._isVariant ? "종류 치환(변형)" : "기본 문제",
     ref?.isFavorite ? "★ 즐겨찾기" : null
   ].filter(Boolean);
-
   for(const m of meta){
     const sp = document.createElement("span");
     sp.className = "chip";
@@ -951,7 +1041,6 @@ function renderCurrent(){
     $("qMeta").appendChild(sp);
   }
 
-  /* ✅ 도라표지 박스에 국/순/자풍/도라 표시를 통합 */
   $("doraBox").innerHTML = "";
 
   const b1 = document.createElement("span");
@@ -992,7 +1081,6 @@ function renderCurrent(){
     btn.addEventListener("click", ()=>{
       if(revealed) return;
 
-      /* ✅ 이미 선택된 패를 다시 클릭하면 바로 정답 확인(Enter/버튼과 동일) */
       if(selectedIndex === i){
         attemptReveal();
         return;
@@ -1006,7 +1094,7 @@ function renderCurrent(){
     $("tiles").appendChild(btn);
   });
 
-  /* ✅ 기본 선택 = 쯔모 */
+  // 기본 선택 = 쯔모
   selectedIndex = tiles.length ? tiles.length - 1 : null;
   selected = (selectedIndex !== null) ? tiles[selectedIndex] : null;
   highlightSelectedTile();
@@ -1034,11 +1122,9 @@ function reveal(){
   const btns = [...$("tiles").querySelectorAll(".tileBtn")];
   btns.forEach(b=>b.classList.remove("correct","wrong"));
 
-  /* ✅ 내가 고른 '그 인덱스' 버튼에 하이라이트 */
   const pickedBtn = btns.find(b => Number(b.dataset.index) === selectedIndex);
   if(pickedBtn) pickedBtn.classList.add(ok ? "correct" : "wrong");
 
-  /* ✅ 오답이면 정답패(1개) 녹색 하이라이트 */
   if(!ok){
     const correctBtn = btns.find(b => (b.dataset.tile || "").trim() === String(correctOne).trim());
     if(correctBtn) correctBtn.classList.add("correct");
@@ -1089,27 +1175,13 @@ function reveal(){
   $("btnNext").disabled = false;
 }
 
-function pickRandom(pool){
-  if(pool.length === 0) return null;
-  return pool[Math.floor(Math.random()*pool.length)];
-}
-function startRandom(favoritesOnly=false){
-  rebuildQuizPool();
-  const pool = favoritesOnly ? quizPool.filter(p=>p.isFavorite && !p._isVariant) : quizPool;
-  if(pool.length === 0){
-    alert("선택한 조건의 문제가 없어. (즐겨찾기만 시작이면 즐겨찾기 문제를 먼저 추가해줘)");
+/* ===== 다음/이전 ===== */
+function nextByMode(){
+  const q = chooseNextQuestion();
+  if(!q){
+    alert("선택 가능한 문제가 없어. (즐겨찾기만 체크 상태인지 확인)");
     return;
   }
-  const q = pickRandom(pool);
-  history = [q];
-  idx = 0;
-  renderCurrent();
-}
-function nextRandom(){
-  rebuildQuizPool();
-  const pool = quizPool;
-  if(pool.length === 0) return;
-  const q = pickRandom(pool);
   history = history.slice(0, idx+1);
   history.push(q);
   idx++;
@@ -1121,6 +1193,7 @@ function prev(){
   renderCurrent();
 }
 
+/* ===== 모달 ===== */
 function openModal(){
   $("modalOverlay").classList.add("show");
   $("modalOverlay").setAttribute("aria-hidden","false");
@@ -1195,8 +1268,11 @@ function saveFromForm(){
   renderProblemList();
   rebuildQuizPool();
   closeModal();
+
+  ensureCurrentStillSelectable();
 }
 
+/* ===== JSON I/O ===== */
 function exportJsonArrayForUser(){
   return baseProblems.map(p => ({
     title: p.title || "",
@@ -1306,8 +1382,10 @@ function importFromText(txt){
   renderProblemList();
   rebuildQuizPool();
   alert(`${imported.length}개 문제를 가져왔어.`);
+  ensureCurrentStillSelectable();
 }
 
+/* ===== 입력 포커스 체크 ===== */
 function isTypingInInput(){
   const el = document.activeElement;
   if(!el) return false;
@@ -1315,11 +1393,44 @@ function isTypingInInput(){
   return tag === "INPUT" || tag === "TEXTAREA" || el.isContentEditable;
 }
 
-function syncRandomizeUi(){
-  const on = $("toggleRandomize").checked;
-  $("randomizeCount").disabled = !on;
+/* ===== 조건 변경 시 현재 문제 유효성 보장 ===== */
+function ensureCurrentStillSelectable(){
+  const cur = history[idx] || null;
+  const activeBase = getActiveBaseList();
+
+  if(activeBase.length === 0){
+    // 즐겨찾기만인데 즐겨찾기 없음 등
+    history = [];
+    idx = -1;
+    setCardEmpty();
+    return;
+  }
+
+  if(!cur){
+    // 아무 문제도 없던 상태면 첫 문제(또는 셔플이면 랜덤) 하나 보여주기
+    const q = shuffleOn()
+      ? (rebuildQuizPool(), pickRandom(getActivePoolForShuffle(), null))
+      : {...activeBase[0], _isVariant:false};
+    history = [q];
+    idx = 0;
+    renderCurrent();
+    return;
+  }
+
+  // 현재 문제가 필터 밖이면 교체
+  const curBaseId = baseIdOf(cur);
+  const exists = activeBase.some(p => p.id === curBaseId);
+  if(!exists){
+    const q = shuffleOn()
+      ? (rebuildQuizPool(), pickRandom(getActivePoolForShuffle(), null))
+      : {...activeBase[0], _isVariant:false};
+    history = [q];
+    idx = 0;
+    renderCurrent();
+  }
 }
 
+/* ===== 키 바인딩 ===== */
 window.addEventListener("keydown", (e)=>{
   const modalOpen = $("modalOverlay")?.classList.contains("show");
   if(modalOpen) return;
@@ -1339,10 +1450,8 @@ window.addEventListener("keydown", (e)=>{
     const btn = $("btnPrev");
     if(btn && !btn.disabled){ e.preventDefault(); btn.click(); }
   }
-  if(e.key === "r" || e.key === "R"){
-    const btn = $("btnStart");
-    if(btn && !btn.disabled){ e.preventDefault(); btn.click(); }
-  }
+
+  // ✅ R 바인딩 제거
 
   if(e.key === "ArrowLeft" || e.key === "ArrowRight"){
     if(revealed) return;
@@ -1360,7 +1469,9 @@ window.addEventListener("keydown", (e)=>{
   }
 });
 
+/* ===== init ===== */
 function init(){
+  // 순 드롭다운 생성
   const turnSel = $("fTurn");
   for(let i=1;i<=18;i++){
     const opt = document.createElement("option");
@@ -1401,11 +1512,8 @@ function init(){
     setCardEmpty();
   });
 
-  $("btnStart").addEventListener("click", ()=>startRandom(false));
-  $("btnStartFav").addEventListener("click", ()=>startRandom(true));
-
   $("btnReveal").addEventListener("click", attemptReveal);
-  $("btnNext").addEventListener("click", nextRandom);
+  $("btnNext").addEventListener("click", nextByMode);
   $("btnPrev").addEventListener("click", prev);
 
   $("btnFavInCard").addEventListener("click", ()=>{
@@ -1416,7 +1524,9 @@ function init(){
     saveBaseProblems(baseProblems);
     setStats();
     renderProblemList();
+    rebuildQuizPool();
     syncCardFavoriteButton();
+    ensureCurrentStillSelectable();
   });
 
   $("toggleRandomize").addEventListener("change", ()=>{
@@ -1425,11 +1535,27 @@ function init(){
   });
   $("randomizeCount").addEventListener("change", rebuildQuizPool);
 
+  $("toggleShuffle").addEventListener("change", ()=>{
+    // 셔플 on/off는 "다음" 동작에 영향. 현재 문제는 유지.
+    // 다만 문제 자체가 없으면 하나 띄워주기.
+    ensureCurrentStillSelectable();
+  });
+
+  $("toggleFavOnly").addEventListener("change", ()=>{
+    // 즐겨찾기만 토글 시: 필터 밖이면 즉시 교체 (셔플/순차 규칙 적용)
+    ensureCurrentStillSelectable();
+  });
+
   syncRandomizeUi();
   setStats();
   renderProblemList();
   rebuildQuizPool();
   setCardEmpty();
+
+  // 초기 상태에서 문제가 있으면 하나 보여주기(순차 규칙)
+  if(baseProblems.length > 0){
+    ensureCurrentStillSelectable();
+  }
 }
 init();
 </script>
